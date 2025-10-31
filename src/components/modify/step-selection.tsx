@@ -6,13 +6,11 @@ import { styled } from '../../styles';
 import { UnreachableCheck } from '../../util/error';
 
 import { RulesStore } from '../../model/rules/rules-store';
-import { AccountStore } from '../../model/account/account-store';
 import {
     StepClass,
     Step,
     AvailableStepKey,
     StepClassKeyLookup,
-    isPaidStepClass,
     RuleType,
 } from '../../model/rules/rules';
 import { summarizeStepClass } from '../../model/rules/rule-descriptions';
@@ -185,19 +183,16 @@ const instantiateStep = (
     }
 }
 
-export const StepSelector = inject('rulesStore', 'accountStore')(observer((p: {
+export const StepSelector = inject('rulesStore')(observer((p: {
     rulesStore?: RulesStore,
-    accountStore?: AccountStore,
     ruleType: RuleType,
     availableSteps: Array<StepClass>,
     value: Step,
     stepIndex: number,
     onChange: (step: Step) => void
 }) => {
-    let [ allowedSteps, needProSteps ] = _.partition(
-        p.availableSteps,
-        (stepClass) => p.accountStore!.isPaidUser || !isPaidStepClass(p.ruleType, stepClass)
-    );
+    // All steps are now available to all users - no need to partition by subscription status
+    let allowedSteps = p.availableSteps;
 
     // Pull the breakpoint steps to the top, since they're kind of separate
     allowedSteps = _.sortBy(allowedSteps, h =>
@@ -224,10 +219,5 @@ export const StepSelector = inject('rulesStore', 'accountStore')(observer((p: {
         }}
     >
         <StepOptions steps={allowedSteps} />
-        { needProSteps.length &&
-            <optgroup label='With HTTP Toolkit Pro:'>
-                <StepOptions steps={needProSteps} />
-            </optgroup>
-        }
     </StepSelect>
 }));
