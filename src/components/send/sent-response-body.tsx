@@ -36,7 +36,6 @@ const ENCODED_DATA_CONTENT_TYPES = ['text', 'raw', 'base64', 'image'] as const;
 export class SentResponseBodyCard extends React.Component<ExpandableCardProps & {
     onCollapseToggled: () => void,
 
-    isPaidUser: boolean,
     url: string,
     message?: ExchangeMessage,
     editorNode: portals.HtmlPortalNode<typeof ContainerSizedEditor>
@@ -69,7 +68,6 @@ export class SentResponseBodyCard extends React.Component<ExpandableCardProps & 
         const {
             url,
             message,
-            isPaidUser,
             collapsed,
             expanded,
             onCollapseToggled,

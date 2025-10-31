@@ -6,7 +6,6 @@ import { HttpExchange } from "../../types";
 import { logError } from "../../errors";
 
 import { UiStore } from '../../model/ui/ui-store';
-import { AccountStore } from '../../model/account/account-store';
 import { CompletedExchange, SuccessfulExchange } from "../../model/http/http-exchange-views";
 import { RequestInput } from "../../model/send/send-request-model";
 import { tagsToErrorType } from "../../model/http/error-types";
@@ -19,11 +18,9 @@ import { PendingResponseHeaderSection, SentResponseHeaderSection } from './sent-
 import { SentResponseBodyCard } from './sent-response-body';
 import { SentResponseError } from './sent-response-error';
 @inject('uiStore')
-@inject('accountStore')
 @observer
 export class ResponsePane extends React.Component<{
     uiStore?: UiStore,
-    accountStore?: AccountStore,
     editorNode: portals.HtmlPortalNode<typeof ContainerSizedEditor>,
 
     requestInput: RequestInput,
@@ -72,7 +69,6 @@ export class ResponsePane extends React.Component<{
             />
             <SentResponseBodyCard
                 {...this.cardProps.responseBody}
-                isPaidUser={this.props.accountStore!.isPaidUser}
                 url={exchange.request.url}
                 message={response}
                 editorNode={editorNode}
@@ -126,7 +122,6 @@ export class ResponsePane extends React.Component<{
             />
             <SentResponseBodyCard
                 {...this.cardProps.responseBody}
-                isPaidUser={this.props.accountStore!.isPaidUser}
                 url={requestInput.url}
                 editorNode={editorNode}
             />

@@ -54,13 +54,11 @@ export class SendStore {
             this.proxyStore.initialized
         ]);
 
-        if (this.accountStore.mightBePaidUser) {
-            // For Pro users only, your 'Send' content persists on reload
-            await hydrate({
-                key: 'send-store',
-                store: this
-            });
-        }
+        // Enable 'Send' content persistence for all users
+        await hydrate({
+            key: 'send-store',
+            store: this
+        });
 
         if (this.sendRequests.length === 0) this.addRequestInput();
         this.selectedRequest = this.sendRequests[this.sendRequests.length - 1];
