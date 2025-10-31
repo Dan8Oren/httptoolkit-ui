@@ -58,8 +58,7 @@ const Route = ({ children, ...props }: ExtendProps & RouteComponentProps): React
 };
 
 const AppKeyboardShortcuts = (props: {
-    navigate: (path: string) => void,
-    canVisitSettings: boolean
+    navigate: (path: string) => void
 }) => {
     useHotkeys('Ctrl+1,Cmd+1', (e) => {
         props.navigate('/intercept');
@@ -78,9 +77,9 @@ const AppKeyboardShortcuts = (props: {
         e.preventDefault();
     }, [props.navigate]);
     useHotkeys('Ctrl+9,Cmd+9', (e) => {
-        if (props.canVisitSettings) props.navigate('/settings');
+        props.navigate('/settings');
         e.preventDefault();
-    }, [props.navigate, props.canVisitSettings]);
+    }, [props.navigate]);
 
     return null;
 };
@@ -95,7 +94,7 @@ class App extends React.Component<{
 
     @computed
     get canVisitSettings() {
-        return this.props.accountStore.isPaidUser || this.props.accountStore.isPastDueUser;
+        return true;
     }
 
     @computed
@@ -156,24 +155,14 @@ class App extends React.Component<{
                 : []
             ),
 
-            (this.canVisitSettings
-                ? {
-                    name: 'Settings',
-                    title: `Reconfigure HTTP Toolkit and manage your account (${Ctrl}+9)`,
-                    icon: 'GearSix',
-                    position: 'bottom',
-                    type: 'router',
-                    url: '/settings'
-                }
-                : {
-                    name: 'Get Pro',
-                    title: "Sign up for HTTP Toolkit Pro",
-                    icon: 'Star',
-                    position: 'bottom',
-                    type: 'callback',
-                    onClick: () => this.props.accountStore.getPro('sidebar')
-                }
-            ),
+            {
+                name: 'Settings',
+                title: `Reconfigure HTTP Toolkit and manage your account (${Ctrl}+9)`,
+                icon: 'GearSix',
+                position: 'bottom',
+                type: 'router',
+                url: '/settings'
+            },
 
             {
                 name: 'Give feedback',
@@ -200,7 +189,6 @@ class App extends React.Component<{
         return <LocationProvider history={appHistory}>
             <AppKeyboardShortcuts
                 navigate={appHistory.navigate}
-                canVisitSettings={this.canVisitSettings}
             />
             <AppContainer>
                 <Sidebar items={this.menuItems} />
