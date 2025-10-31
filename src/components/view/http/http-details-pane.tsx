@@ -466,7 +466,6 @@ export class HttpDetailsPane extends React.Component<{
 
             editorNode={this.props.streamMessageEditor}
 
-            isPaidUser={this.props.accountStore!.isPaidUser}
             filenamePrefix={filenamePrefix}
             messages={exchange.messages}
             onClearMessages={this.clearMessages}

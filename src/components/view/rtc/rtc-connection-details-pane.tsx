@@ -147,7 +147,6 @@ export class RTCConnectionDetailsPane extends React.Component<{
                     <RTCDataChannelCard
                         key={dataChannel.id}
                         dataChannel={dataChannel}
-                        isPaidUser={accountStore!.isPaidUser}
                         streamMessageEditor={this.dataChannelEditors[i]}
 
                         expanded={false}

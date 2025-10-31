@@ -45,8 +45,6 @@ export class ViewEventContextMenuBuilder {
 
     getContextMenuCallback(event: CollectedEvent) {
         return (mouseEvent: React.MouseEvent) => {
-            const { isPaidUser } = this.accountStore;
-
             const preferredExportFormat = this.uiStore.exportSnippetFormat
                 ? getCodeSnippetOptionFromKey(this.uiStore.exportSnippetFormat)
                 : undefined;
@@ -59,32 +57,25 @@ export class ViewEventContextMenuBuilder {
                         label: 'Copy Request URL',
                         callback: (data: HttpExchangeView) => copyToClipboard(data.request.url)
                     },
-                    ...(!isPaidUser ? [
-                        { type: 'separator' },
-                        { type: 'option', label: 'With Pro:', enabled: false, callback: () => {} }
-                    ] as const : []),
                     ...(this.onPrepareToResendRequest ? [
                         {
                             type: 'option',
-                            enabled: isPaidUser,
                             label: 'Resend Request',
                             callback: (data: HttpExchangeView) => this.onPrepareToResendRequest!(data)
                         }
                     ] as const : []),
                     {
                         type: 'option',
-                        enabled: isPaidUser,
                         label: `Create Matching Modify Rule`,
                         callback: this.onBuildRuleFromExchange
                     },
                     {
                         type: 'option',
-                        enabled: isPaidUser,
                         label: `Export Exchange as HAR`,
                         callback: exportHar
                     },
                     // If you have a preferred default format, we show that option at the top level:
-                    ...(preferredExportFormat && isPaidUser ? [{
+                    ...(preferredExportFormat ? [{
                         type: 'option',
                         label: `Copy as ${getCodeSnippetFormatName(preferredExportFormat)} Snippet`,
                         callback: async (data: HttpExchange) => {
@@ -97,7 +88,6 @@ export class ViewEventContextMenuBuilder {
                     }] as const : []),
                     {
                         type: 'submenu',
-                        enabled: isPaidUser,
                         label: `Copy as Code Snippet`,
                         items: Object.keys(snippetExportOptions).map((snippetGroupName) => ({
                             type: 'submenu' as const,
@@ -123,9 +113,7 @@ export class ViewEventContextMenuBuilder {
                     this.BaseOptions.Delete
                 ];
 
-                const sortedOptions = _.sortBy(menuOptions, (o: ContextMenuItem<any>) =>
-                    o.type === 'separator' || !(o.enabled ?? true)
-                ) as Array<ContextMenuItem<HttpExchange | WebSocketStream>>;
+                const sortedOptions = menuOptions as Array<ContextMenuItem<HttpExchange | WebSocketStream>>;
 
                 this.uiStore.handleContextMenuEvent(
                     mouseEvent,

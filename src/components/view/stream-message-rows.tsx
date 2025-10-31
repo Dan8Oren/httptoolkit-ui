@@ -153,7 +153,6 @@ interface MessageEditorRowProps {
     streamId: string,
     message: StreamMessage,
     editorNode: portals.HtmlPortalNode<typeof SelfSizedEditor>,
-    isPaidUser: boolean,
     onExportMessage: (message: StreamMessage) => void
 }
 
@@ -223,7 +222,7 @@ export class StreamMessageEditorRow extends React.Component<MessageEditorRowProp
     }
 
     render() {
-        const { message, isPaidUser, onExportMessage, editorNode, streamId } = this.props;
+        const { message, onExportMessage, editorNode, streamId } = this.props;
 
         const compatibleContentTypes = getCompatibleTypes(
             message.contentType,
@@ -276,12 +275,7 @@ export class StreamMessageEditorRow extends React.Component<MessageEditorRowProp
                 </ContentLabel>
                 <IconButton
                     icon={['fas', 'download']}
-                    title={
-                        isPaidUser
-                            ? "Save this message as a file"
-                            : "With Pro: Save this message as a file"
-                    }
-                    disabled={!isPaidUser}
+                    title="Save this message as a file"
                     onClick={() => onExportMessage(message)}
                 />
                 <PillSelector<ViewableContentType>

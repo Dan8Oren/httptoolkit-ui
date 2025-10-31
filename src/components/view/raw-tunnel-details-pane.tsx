@@ -22,7 +22,6 @@ import { SelfSizedEditor } from '../editor/base-editor';
 export class RawTunnelDetailsPane extends React.Component<{
     tunnel: RawTunnel,
     streamMessageEditor: portals.HtmlPortalNode<typeof SelfSizedEditor>,
-    isPaidUser: boolean,
     uiStore?: UiStore
 }> {
     render() {
@@ -35,7 +34,6 @@ export class RawTunnelDetailsPane extends React.Component<{
         const packetCardProps = this.props.uiStore!.viewCardProps['rawTunnelPackets'];
 
         const packetsListCard = <StreamMessageListCard
-            isPaidUser={this.props.isPaidUser}
             {...packetCardProps}
 
             streamId={tunnel.id}

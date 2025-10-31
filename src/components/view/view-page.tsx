@@ -60,7 +60,6 @@ interface ViewPageProps {
 }
 
 const ViewPageKeyboardShortcuts = (props: {
-    isPaidUser: boolean,
     selectedEvent: CollectedEvent | undefined,
     onFocusLeft: () => void,
     onFocusRight: () => void,
@@ -340,7 +339,6 @@ class ViewPage extends React.Component<ViewPageProps> {
     render(): JSX.Element {
         const { isPaused, events } = this.props.eventsStore;
         const { certPath } = this.props.proxyStore;
-        const { isPaidUser } = this.props.accountStore;
 
         const { filteredEvents, filteredEventCount } = this.filteredEventState;
 
@@ -403,7 +401,6 @@ class ViewPage extends React.Component<ViewPageProps> {
             rightPane = <RawTunnelDetailsPane
                 tunnel={this.selectedEvent}
                 streamMessageEditor={this.editors.streamMessage}
-                isPaidUser={isPaidUser}
             />
         } else {
             throw new UnreachableCheck(this.selectedEvent);
@@ -415,7 +412,6 @@ class ViewPage extends React.Component<ViewPageProps> {
 
         return <div className={this.props.className}>
             <ViewPageKeyboardShortcuts
-                isPaidUser={isPaidUser}
                 selectedEvent={this.selectedEvent}
                 moveSelection={this.moveSelection}
                 onFocusLeft={this.focusLeftPane}

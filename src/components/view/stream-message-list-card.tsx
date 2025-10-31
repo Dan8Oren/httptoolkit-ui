@@ -36,7 +36,6 @@ function getFilename(
 
 @observer
 export class StreamMessageListCard extends React.Component<ExpandableCardProps & {
-    isPaidUser: boolean,
     filenamePrefix: string,
     streamId: string,
     cardHeading: string,
@@ -60,7 +59,6 @@ export class StreamMessageListCard extends React.Component<ExpandableCardProps &
             cardHeading,
             streamLabel,
             messages,
-            isPaidUser,
             editorNode,
             collapsed,
             expanded,
@@ -84,12 +82,7 @@ export class StreamMessageListCard extends React.Component<ExpandableCardProps &
                     /> }
                     <IconButton
                         icon={['fas', 'download']}
-                        title={
-                            isPaidUser
-                                ? "Save these messages as a file"
-                                : "With Pro: Save these messages as a file"
-                        }
-                        disabled={!isPaidUser}
+                        title="Save these messages as a file"
                         onClick={this.exportMessages}
                     />
                     { onClearMessages &&
@@ -125,7 +118,6 @@ export class StreamMessageListCard extends React.Component<ExpandableCardProps &
                             message={message}
 
                             streamId={streamId}
-                            isPaidUser={isPaidUser}
                             onExportMessage={this.exportMessage}
                             editorNode={editorNode}
                         />
