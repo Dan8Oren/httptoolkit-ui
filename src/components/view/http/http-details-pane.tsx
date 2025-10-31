@@ -195,11 +195,11 @@ export class HttpDetailsPane extends React.Component<{
         if (!apiName) return null;
 
         if (!apiExchange) {
-            // If you're not a paid user, and it's a paid API, then we only have
-            // the basic API name here but no details, so we just show a placeholder:
+            // If we don't have API exchange details, show a placeholder:
             return <HttpApiPlaceholderCard
                 {...this.cardProps.api}
                 apiName={apiName}
+                apiExchange={apiExchange}
             />;
         }
 

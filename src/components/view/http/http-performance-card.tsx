@@ -11,7 +11,7 @@ import { asHeaderArray } from '../../../model/http/headers';
 import { joinAnd } from '../../../util/text';
 import { Icon, WarningIcon, SuggestionIcon } from '../../../icons';
 
-import { AccountStore } from '../../../model/account/account-store';
+
 import { testEncodings } from '../../../model/events/bodies';
 import {
     explainCacheability,
@@ -33,44 +33,29 @@ import {
     CollapsibleSectionBody
 } from '../../common/collapsible-section';
 import { ContentLabelBlock, Markdown } from '../../common/text-content';
-import { ProHeaderPill, CardSalesPitch } from '../../account/pro-placeholders';
+
 
 interface HttpPerformanceCardProps extends CollapsibleCardProps {
     exchange: HttpExchangeView;
-    accountStore?: AccountStore;
 }
 
-export const HttpPerformanceCard = inject('accountStore')(observer((props: HttpPerformanceCardProps) => {
-    const { exchange, accountStore } = props;
-    const { isPaidUser } = accountStore!;
+export const HttpPerformanceCard = observer((props: HttpPerformanceCardProps) => {
+    const { exchange } = props;
 
     return <CollapsibleCard {...props}>
         <header>
-            { isPaidUser
-                ? <DurationPill timingEvents={exchange.timingEvents} />
-                : <ProHeaderPill />
-            }
+            <DurationPill timingEvents={exchange.timingEvents} />
             <CollapsibleCardHeading onCollapseToggled={props.onCollapseToggled}>
                 Performance
             </CollapsibleCardHeading>
         </header>
 
-        { isPaidUser ?
-            <div>
-                <CompressionPerformance exchange={exchange} />
-                <CachingPerformance exchange={exchange} />
-            </div>
-        :
-            <CardSalesPitch source='performance'>
-                <p>
-                    See timing info, dive into the real and potential compression of every
-                    exchange, and understand how &amp; where this response could
-                    be cached, for a full performance overview.
-                </p>
-            </CardSalesPitch>
-        }
+        <div>
+            <CompressionPerformance exchange={exchange} />
+            <CachingPerformance exchange={exchange} />
+        </div>
     </CollapsibleCard>;
-}));
+});
 
 function getEncodingName(key: string): string {
     if (key === 'br') return 'brotli';

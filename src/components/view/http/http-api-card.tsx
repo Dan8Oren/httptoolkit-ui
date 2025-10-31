@@ -25,7 +25,7 @@ import {
     ExternalContent
 } from '../../common/text-content';
 import { DocsLink } from '../../common/docs-link';
-import { CardSalesPitch, ProHeaderPill } from '../../account/pro-placeholders';
+
 
 const ServiceLogo = styled(OptionalImage)`
     float: right;
@@ -275,34 +275,25 @@ export const HttpApiCard = observer((props: HttpApiCardProps) => {
 
 interface HttpApiPlaceholderCardProps extends CollapsibleCardProps {
     apiName: string;
+    apiExchange?: ApiExchange;
 }
 
 export const HttpApiPlaceholderCard = observer((props: HttpApiPlaceholderCardProps) => {
-    const { apiName } = props;
+    const { apiName, apiExchange } = props;
 
     return <CollapsibleCard {...props}>
         <header>
-            <ProHeaderPill />
-
             <CollapsibleCardHeading onCollapseToggled={props.onCollapseToggled}>
                 { apiName }
             </CollapsibleCardHeading>
         </header>
 
-        <CardSalesPitch source='api'>
-            <p>
-                HTTP Toolkit Pro can show you more information about this API.
-            </p>
-            <p>
-                Instantly understand this request with inline documentation for the
-                endpoint, parameters, and responses.
-            </p>
-            <p>
-                Automatically validate that this request &amp; its body match the API
-                schema. See all the parameters that you're <em>not</em> sending too,
-                and their default values, and get warned about deprecated or invalid
-                endpoints and parameters.
-            </p>
-        </CardSalesPitch>
+        { apiExchange ? (
+            <ApiRequestDetails api={apiExchange} />
+        ) : (
+            <div>
+                <p>API documentation is not available for this endpoint.</p>
+            </div>
+        )}
     </CollapsibleCard>;
 });

@@ -115,8 +115,6 @@ export class HttpBodyCard extends React.Component<ExpandableCardProps & {
                         selectedContentType={decodedContentType}
                         contentTypeOptions={compatibleContentTypes}
                         onChangeContentType={this.onChangeContentType}
-
-                        isPaidUser={isPaidUser}
                     />
                 </header>
                 <EditorCardContent showFullBorder={!expanded}>
@@ -164,8 +162,6 @@ export class HttpBodyCard extends React.Component<ExpandableCardProps & {
                         selectedContentType={encodedDataContentType}
                         contentTypeOptions={ENCODED_DATA_CONTENT_TYPES}
                         onChangeContentType={this.onChangeContentType}
-
-                        isPaidUser={isPaidUser}
                     />
                 </header>
                 <BodyCodingErrorBanner
@@ -210,7 +206,6 @@ export class HttpBodyCard extends React.Component<ExpandableCardProps & {
                         selectedContentType={decodedContentType}
                         contentTypeOptions={compatibleContentTypes}
                         onChangeContentType={this.onChangeContentType}
-                        isPaidUser={isPaidUser}
                     />
                 </header>
             </LoadingCard>;

@@ -8,7 +8,7 @@ import { styled } from '../../../styles';
 import { Icon } from '../../../icons';
 import { logError } from '../../../errors';
 
-import { AccountStore } from '../../../model/account/account-store';
+
 import { UiStore } from '../../../model/ui/ui-store';
 import {
     exportHar,
@@ -21,7 +21,7 @@ import {
     SnippetOption
 } from '../../../model/ui/export';
 
-import { ProHeaderPill, CardSalesPitch } from '../../account/pro-placeholders';
+
 import {
     CollapsibleCard,
     CollapsibleCardProps,
@@ -34,7 +34,6 @@ import { SelfSizedEditor } from '../../editor/base-editor';
 
 interface ExportCardProps extends CollapsibleCardProps  {
     exchange: HttpExchangeView;
-    accountStore?: AccountStore;
     uiStore?: UiStore;
 }
 
@@ -135,21 +134,16 @@ const ExportHarPill = styled(observer((p: {
     margin-right: auto;
 `;
 
-@inject('accountStore')
 @inject('uiStore')
 @observer
 export class HttpExportCard extends React.Component<ExportCardProps> {
 
     render() {
-        const { exchange, accountStore } = this.props;
-        const { isPaidUser } = accountStore!;
+        const { exchange } = this.props;
 
         return <CollapsibleCard {...this.props}>
             <header>
-                { isPaidUser
-                    ? <ExportHarPill exchange={exchange} />
-                    : <ProHeaderPill />
-                }
+                <ExportHarPill exchange={exchange} />
 
                 <PillSelector<SnippetOption>
                     onChange={this.setSnippetOption}
@@ -164,27 +158,12 @@ export class HttpExportCard extends React.Component<ExportCardProps> {
                 </CollapsibleCardHeading>
             </header>
 
-            { isPaidUser ?
-                <div>
-                    <ExportSnippetEditor
-                        exchange={exchange}
-                        exportOption={this.snippetOption}
-                    />
-                </div>
-            :
-                <CardSalesPitch source='export'>
-                    <p>
-                        Instantly export requests as code, for languages and tools including cURL, wget, JS
-                        (XHR, Node HTTP, Request, ...), Python (native or Requests), Ruby, Java (OkHttp
-                        or Unirest), Go, PHP, Swift, HTTPie, and a whole lot more.
-                    </p>
-                    <p>
-                        Want to save the exchange itself? Export one or all requests as HAR (the{' '}
-                        <a href="https://en.wikipedia.org/wiki/.har">HTTP Archive Format</a>), to import
-                        and examine elsewhere, share with your team, or store for future reference.
-                    </p>
-                </CardSalesPitch>
-            }
+            <div>
+                <ExportSnippetEditor
+                    exchange={exchange}
+                    exportOption={this.snippetOption}
+                />
+            </div>
         </CollapsibleCard>;
     }
 

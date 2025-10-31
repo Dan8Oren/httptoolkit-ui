@@ -87,9 +87,7 @@ export const ReadonlyBodyCardHeader = (props: {
 
     selectedContentType: ViewableContentType,
     contentTypeOptions: readonly ViewableContentType[],
-    onChangeContentType: (contentType: ViewableContentType) => void,
-
-    isPaidUser: boolean
+    onChangeContentType: (contentType: ViewableContentType) => void
 }) => {
     const { body } = props;
 
@@ -101,12 +99,8 @@ export const ReadonlyBodyCardHeader = (props: {
             />
             <IconButton
                 icon={['fas', 'download']}
-                title={
-                    props.isPaidUser
-                        ? "Save this body as a file"
-                        : "With Pro: Save this body as a file"
-                }
-                disabled={!props.isPaidUser || !body}
+                title="Save this body as a file"
+                disabled={!body}
                 onClick={() => saveFile(
                     props.downloadFilename || "",
                     props.mimeType || 'application/octet-stream',
