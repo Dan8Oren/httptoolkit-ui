@@ -146,19 +146,6 @@ export class ProxyStore {
     });
 
     private async loadSettings() {
-        const { accountStore } = this;
-        // Every time the user account data is updated from the server, consider resetting
-        // paid settings to the free defaults. This ensures that they're reset on
-        // logout & subscription expiration (even if that happened while the app was
-        // closed), but don't get reset when the app starts with stale account data.
-        observe(accountStore, 'accountDataLastUpdated', () => {
-            if (!accountStore.isPaidUser) {
-                this.setPortConfig(undefined);
-                this.http2Enabled = 'fallback';
-                this.tlsPassthroughConfig = [];
-            }
-        });
-
         // Load all persisted settings from storage
         await hydrate({
             key: 'server-store',

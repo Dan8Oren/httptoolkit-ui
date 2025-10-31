@@ -100,7 +100,7 @@ const isExpandableSendCard = (key: any): key is ExpandableSendCardKey =>
     EXPANDABLE_SEND_REQUEST_CARD_KEYS.includes(key) ||
     EXPANDABLE_SENT_RESPONSE_CARD_KEYS.includes(key);
 
-const SETTINGS_CARD_KEYS =[
+const SETTINGS_CARD_KEYS = [
     'account',
     'proxy',
     'connection',
@@ -132,15 +132,7 @@ export class UiStore {
             localStorage.setItem('theme-background-color', this.theme.containerBackground);
         });
 
-        // Every time the user account data is updated from the server, consider resetting
-        // paid settings to the free defaults. This ensures that they're reset on
-        // logout & subscription expiration (even if that happened while the app was
-        // closed), but don't get reset when the app starts with stale account data.
-        observe(this.accountStore, 'accountDataLastUpdated', () => {
-            if (!this.accountStore.isPaidUser) {
-                this.setTheme('automatic');
-            }
-        });
+
 
         await hydrate({
             key: 'ui-store',
@@ -210,9 +202,9 @@ export class UiStore {
 
     @computed
     get theme(): Theme {
-        switch(this.themeName) {
+        switch (this.themeName) {
             case 'automatic':
-                return {...Themes[this._prefersDarkTheme ? 'dark' : 'light']}
+                return { ...Themes[this._prefersDarkTheme ? 'dark' : 'light'] }
             case 'custom':
                 return this.customTheme!;
             default:
@@ -282,7 +274,7 @@ export class UiStore {
             key,
             ariaLabel: `${_.startCase(key)} section`,
             expanded: key === this.animatedExpansionCard
-                ?  'starting' as const
+                ? 'starting' as const
                 : key === this.expandedViewCard,
             collapsed: state.collapsed && key !== this.expandedViewCard,
             onCollapseToggled: this.toggleViewCardCollapsed.bind(this, key as ViewCardKey),
@@ -381,10 +373,10 @@ export class UiStore {
     @action
     private toggleSendCardExpanded(key: ExpandableSendCardKey) {
         const expandedCardField = isSendRequestCard(key)
-                ? 'expandedSendRequestCard'
+            ? 'expandedSendRequestCard'
             : isSentResponseCard(key)
                 ? 'expandedSentResponseCard'
-            : unreachableCheck(key);
+                : unreachableCheck(key);
 
         if (this[expandedCardField] === key) {
             this[expandedCardField] = undefined;
@@ -448,11 +440,7 @@ export class UiStore {
 
     @computed
     get customFilters() {
-        if (this.accountStore.isPaidUser) {
-            return this._customFilters;
-        } else {
-            return {};
-        }
+        return this._customFilters;
     }
 
     @persist @observable

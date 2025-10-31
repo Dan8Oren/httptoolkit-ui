@@ -219,41 +219,36 @@ export class RulesStore {
             logError(e);
         }
 
-        if (accountStore.mightBePaidUser) {
-            // Load the actual rules from storage (separately, so deserialization can use settings loaded above)
-            await hydrate({
-                key: 'rules-store',
-                store: this,
-                dataTransform: (data: { rules: any }) => ({
-                    rules: migrateRuleData(data.rules)
-                }),
-                customArgs: { rulesStore: this } as DeserializationArgs
-            }).catch((err) => {
-                console.log('Failed to load last-run rules',
-                    err,
-                    // Log the full rule data for debugging:
-                    JSON.parse(localStorage.getItem('rules-store') ?? '{}')?.rules
-                );
+        // Load the actual rules from storage (separately, so deserialization can use settings loaded above)
+        await hydrate({
+            key: 'rules-store',
+            store: this,
+            dataTransform: (data: { rules: any }) => ({
+                rules: migrateRuleData(data.rules)
+            }),
+            customArgs: { rulesStore: this } as DeserializationArgs
+        }).catch((err) => {
+            console.log('Failed to load last-run rules',
+                err,
+                // Log the full rule data for debugging:
+                JSON.parse(localStorage.getItem('rules-store') ?? '{}')?.rules
+            );
 
-                logError(err);
-                alert(`Could not load rules from last run.\n\n${err}`);
-                // We then continue, which resets the rules exactly as if this was the user's first run.
-            });
+            logError(err);
+            alert(`Could not load rules from last run.\n\n${err}`);
+            // We then continue, which resets the rules exactly as if this was the user's first run.
+        });
 
-            if (!this.rules) {
-                // If rules are somehow undefined (not sure, but seems it can happen, maybe odd data?) reset them:
-                this.resetRulesToDefault();
-            } else {
-                // Drafts are never persisted, so always need resetting to match the just-loaded data:
-                this.resetRuleDrafts();
-
-                // Recreate default rules on startup, even if we're restoring persisted rules
-                const defaultRules = buildDefaultGroupRules(this, this.proxyStore);
-                defaultRules.forEach(r => this.ensureRuleExists(r));
-            }
-        } else {
-            // For free users, reset rules to default (separately, so defaults can use settings loaded above)
+        if (!this.rules) {
+            // If rules are somehow undefined (not sure, but seems it can happen, maybe odd data?) reset them:
             this.resetRulesToDefault();
+        } else {
+            // Drafts are never persisted, so always need resetting to match the just-loaded data:
+            this.resetRuleDrafts();
+
+            // Recreate default rules on startup, even if we're restoring persisted rules
+            const defaultRules = buildDefaultGroupRules(this, this.proxyStore);
+            defaultRules.forEach(r => this.ensureRuleExists(r));
         }
 
         // Support injection of a default forwarding rule by the desktop app, for integrations
@@ -271,21 +266,7 @@ export class RulesStore {
             });
         }
 
-        // Every time the user account data is updated from the server, consider resetting
-        // paid settings to the free defaults. This ensures that they're reset on
-        // logout & subscription expiration (even if that happened while the app was
-        // closed), but don't get reset when the app starts with stale account data.
-        observe(accountStore, 'accountDataLastUpdated', () => {
-            if (!accountStore.isPaidUser) {
-                this.whitelistedCertificateHosts = ['localhost'];
-                this.clientCertificateHostMap = {};
-                this.upstreamProxyType = 'system';
-                this.upstreamNoProxyHosts = [];
 
-                // We don't reset the rules on expiry/log out, e.g. to remove paid rule types, but
-                // they won't persist, so they'll disappear next time the app is started up.
-            }
-        });
     }
 
     // This is live updated as the corresponding fields change, and so the resulting rules are
