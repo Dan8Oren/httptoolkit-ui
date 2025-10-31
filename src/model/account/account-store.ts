@@ -1,8 +1,15 @@
 import * as _ from 'lodash';
 import { observable, computed } from 'mobx';
 
-import { User } from '@httptoolkit/accounts';
 import { lazyObservablePromise } from '../../util/observable';
+
+// Local User interface to replace @httptoolkit/accounts dependency
+interface User {
+    email?: string;
+    featureFlags?: string[];
+    banned?: boolean;
+    subscription?: any;
+}
 
 export class AccountStore {
 

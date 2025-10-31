@@ -5,7 +5,10 @@ import * as dedent from 'dedent';
 import {
     distanceInWordsStrict, distanceInWordsToNow, format, isFuture
 } from 'date-fns';
-import { SubscriptionPlans } from '@httptoolkit/accounts';
+
+// Stub for removed SubscriptionPlans - no longer needed since all users have Pro access
+type SubscriptionPlansType = { [key: string]: { name: string } };
+const SubscriptionPlans: SubscriptionPlansType = {};
 
 import { WithInjected } from '../../types';
 import { styled, Theme, ThemeName } from '../../styles';
@@ -183,7 +186,7 @@ class SettingsPage extends React.Component<SettingsPageProps> {
                                     'deleted': sub.expiry && isFuture(sub.expiry)
                                         ? `Active (until ${sub.expiry.toLocaleDateString()})`
                                         : 'Cancelled'
-                                }[sub.status]) || 'Unknown'
+                                } as any)[sub.status] || 'Unknown'
                             }
                             { isAccountUpdateInProcess &&
                                 <AccountUpdateSpinner />
@@ -196,7 +199,7 @@ class SettingsPage extends React.Component<SettingsPageProps> {
                         <ContentValue>
                             {
                                 subscriptionPlans.state === 'fulfilled'
-                                ? (subscriptionPlans.value as SubscriptionPlans)[sub.sku]?.name
+                                ? (subscriptionPlans.value as SubscriptionPlansType)[sub.sku]?.name
                                 // If the accounts API is unavailable for plan metadata for some reason, we can just
                                 // format the raw SKU to get something workable, no worries:
                                 : _.startCase(sub.sku)
@@ -210,7 +213,7 @@ class SettingsPage extends React.Component<SettingsPageProps> {
                                     'trialing': 'Renews',
                                     'past_due': 'Next payment attempt',
                                     'deleted': 'Ends',
-                                }[sub.status]) || 'Current period ends'
+                                } as any)[sub.status] || 'Current period ends'
                             }
                         </ContentLabel>
                         <ContentValue>

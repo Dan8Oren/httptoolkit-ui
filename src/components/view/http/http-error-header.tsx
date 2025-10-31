@@ -32,7 +32,6 @@ import {
 export const HttpErrorHeader = (p: {
     isPaidUser: boolean,
     type: ErrorType,
-    getPro: (source: string) => void,
     navigate: (path: string) => void,
     createRuleFromRequest: () => void,
     ignoreError: () => void
@@ -318,17 +317,9 @@ export const HttpErrorHeader = (p: {
                 Create a rule
             </HeaderButton>
         : isWhitelistable(p.type)
-            ? (p.isPaidUser
-                ? <HeaderButton onClick={() => p.navigate('/settings')} onKeyPress={clickOnEnter}>
-                    Go to Settings
-                </HeaderButton>
-                : <HeaderButton
-                    onClick={() => p.getPro(`error-header-${p.type}`)}
-                    onKeyPress={clickOnEnter}
-                >
-                    Get Pro
-                </HeaderButton>
-            )
+            ? <HeaderButton onClick={() => p.navigate('/settings')} onKeyPress={clickOnEnter}>
+                Go to Settings
+            </HeaderButton>
         : null }
 
     </HeaderCard>;

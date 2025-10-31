@@ -10,9 +10,7 @@ import { RulesStore } from '../../../model/rules/rules-store';
 import { AccountStore } from '../../../model/account/account-store';
 
 import { HEADER_FOOTER_HEIGHT } from '../view-event-list-footer';
-import { ProPill } from '../../account/pro-placeholders';
 import { IconButton } from '../../common/icon-button';
-import { UnstyledButton } from '../../common/inputs';
 
 const ButtonsContainer = styled.div`
     height: ${HEADER_FOOTER_HEIGHT}px;
@@ -74,45 +72,25 @@ const DeleteButton = observer((p: {
 
 const ModifyButton = observer((p: {
     isExchange: boolean,
-    isPaidUser: boolean,
     onClick: () => void
 }) => <IconButton
     icon='Pencil'
     onClick={p.onClick}
-    title={
-        p.isPaidUser
-            ? `Create a modify rule from this exchange (${Ctrl}+m)`
-            : 'With Pro: create a modify rule from this exchange'
-    }
-    disabled={!p.isExchange || !p.isPaidUser}
+    title={`Create a modify rule from this exchange (${Ctrl}+m)`}
+    disabled={!p.isExchange}
 />);
 
 const SendButton = observer((p: {
     isExchange: boolean,
-    isPaidUser: boolean,
     onClick: () => void
 }) => <IconButton
     icon='PaperPlaneTilt'
     onClick={p.onClick}
-    title={p.isPaidUser
-        ? `Resend this request (${Ctrl}+r)`
-        : 'With Pro: Resend this request'
-    }
-    disabled={!p.isExchange || !p.isPaidUser}
+    title={`Resend this request (${Ctrl}+r)`}
+    disabled={!p.isExchange}
 />);
 
-const ProSeparator = styled(inject('accountStore')((p: {
-    accountStore?: AccountStore,
-    className?: string
-}) => <UnstyledButton
-    onClick={() => p.accountStore!.getPro('http-event-footer')}
-    className={p.className}
->
-    <ProPill>With Pro:</ProPill>
-</UnstyledButton>))`
-    padding: 0;
-    margin-left: 40px;
-`;
+
 
 export const HttpDetailsFooter = inject('rulesStore')(
     observer(
@@ -151,20 +129,13 @@ export const HttpDetailsFooter = inject('rulesStore')(
                     onClick={() => props.onDelete(collectedEvent)}
                 />
 
-                {
-                    !props.isPaidUser &&
-                        <ProSeparator />
-                }
-
                 <ModifyButton
                     isExchange={event.isHttp() && !event.isWebSocket()}
-                    isPaidUser={props.isPaidUser}
                     onClick={() => props.onBuildRuleFromExchange(props.event as HttpExchangeView)}
                 />
                 { props.onPrepareToResendRequest &&
                     <SendButton
                         isExchange={event.isHttp() && !event.isWebSocket()}
-                        isPaidUser={props.isPaidUser}
                         onClick={() => props.onPrepareToResendRequest!(
                             props.event as HttpExchangeView
                         )}
