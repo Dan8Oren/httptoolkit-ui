@@ -5,3 +5,4 @@ dist/
 meta/
 *.tsbuildinfo
 .httptoolkit-server/
+.kiro/specs/

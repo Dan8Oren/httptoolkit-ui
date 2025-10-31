@@ -30,9 +30,7 @@ import { ModifyPage } from './modify/modify-page';
 import { SendPage } from './send/send-page';
 import { SettingsPage } from './settings/settings-page';
 
-import { PlanPicker } from './account/plan-picker';
-import { ModalOverlay } from './account/modal-overlay';
-import { CheckoutSpinner } from './account/checkout-spinner';
+
 import { HtmlContextMenu } from './html-context-menu';
 import { DisconnectedWarning } from './disconnected-warning';
 
@@ -191,13 +189,7 @@ class App extends React.Component<{
 
     render() {
         const {
-            modal,
-            setSelectedPlan,
-            subscriptionPlans,
-            userEmail,
-            logIn,
-            logOut,
-            cancelCheckout
+            userEmail
         } = this.props.accountStore;
 
         const {
@@ -210,14 +202,7 @@ class App extends React.Component<{
                 navigate={appHistory.navigate}
                 canVisitSettings={this.canVisitSettings}
             />
-            <AppContainer
-                aria-hidden={!!modal}
-                inert={!!modal}
-                // 'inert' doesn't actually work - it's non-standard, so we need this:
-                ref={node => node && (!!modal ?
-                    node.setAttribute('inert', '') : node.removeAttribute('inert')
-                )}
-            >
+            <AppContainer>
                 <Sidebar items={this.menuItems} />
 
                 <Router>
@@ -233,24 +218,6 @@ class App extends React.Component<{
 
                 <DisconnectedWarning />
             </AppContainer>
-
-            { !!modal && <ModalOverlay /> }
-
-            { modal === 'pick-a-plan' &&
-                <PlanPicker
-                    email={userEmail}
-                    onPlanPicked={setSelectedPlan}
-                    logOut={logOut}
-                    logIn={logIn}
-                    plans={subscriptionPlans}
-                />
-            }
-
-            { modal === 'post-checkout' &&
-                <CheckoutSpinner
-                    onCancel={cancelCheckout}
-                />
-            }
 
             {
                 contextMenuState &&
