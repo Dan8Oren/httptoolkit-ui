@@ -146,11 +146,9 @@ const getSelectedFilterElements = (filterBox: HTMLDivElement) => {
 }
 
 @inject('uiStore')
-@inject('accountStore')
 @observer
 export class SearchFilter<T> extends React.Component<{
     uiStore?: UiStore,
-    accountStore?: AccountStore,
     onFiltersConsidered: (filters: FilterSet | undefined) => void,
     availableFilters: FilterClass<T>[],
     filterSuggestionContext?: T,
@@ -535,7 +533,6 @@ export class SearchFilter<T> extends React.Component<{
             activeFilters,
             availableFilters,
             props: {
-                accountStore,
                 placeholder,
                 searchInputRef,
                 filterSuggestionContext,
@@ -591,8 +588,8 @@ export class SearchFilter<T> extends React.Component<{
                 availableFilters={availableFilters}
                 suggestionContext={filterSuggestionContext}
 
-                isPaidUser={accountStore!.isPaidUser}
-                getPro={accountStore!.getPro}
+                isPaidUser={true}
+                getPro={() => {}}
             />
             { hasContents
                 ? <FloatingClearFiltersButton

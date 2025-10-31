@@ -102,18 +102,18 @@ const ViewPageKeyboardShortcuts = (props: {
     }, [selectedEvent, props.onPin]);
 
     useHotkeys('Ctrl+r, Cmd+r', (event) => {
-        if (props.isPaidUser && selectedEvent?.isHttp() && !selectedEvent?.isWebSocket()) {
+        if (selectedEvent?.isHttp() && !selectedEvent?.isWebSocket()) {
             props.onResend(selectedEvent);
             event.preventDefault();
         }
-    }, [selectedEvent, props.onResend, props.isPaidUser]);
+    }, [selectedEvent, props.onResend]);
 
     useHotkeys('Ctrl+m, Cmd+m', (event) => {
-        if (props.isPaidUser && selectedEvent?.isHttp() && !selectedEvent?.isWebSocket()) {
+        if (selectedEvent?.isHttp() && !selectedEvent?.isWebSocket()) {
             props.onBuildRuleFromExchange(selectedEvent);
             event.preventDefault();
         }
-    }, [selectedEvent, props.onBuildRuleFromExchange, props.isPaidUser]);
+    }, [selectedEvent, props.onBuildRuleFromExchange]);
 
     useHotkeys('Ctrl+Delete, Cmd+Delete, Ctrl+Backspace, Cmd+Backspace', (event) => {
         if (isEditable(event.target)) return;
@@ -542,8 +542,6 @@ class ViewPage extends React.Component<ViewPageProps> {
     onBuildRuleFromExchange(exchange: HttpExchangeView) {
         const { rulesStore, navigate } = this.props;
 
-        if (!this.props.accountStore!.isPaidUser) return;
-
         const rule = buildRuleFromExchange(exchange);
         rulesStore!.draftRules.items.unshift(rule);
         navigate(`/modify/${rule.id}`);
@@ -552,8 +550,6 @@ class ViewPage extends React.Component<ViewPageProps> {
     @action.bound
     async onPrepareToResendRequest(exchange: HttpExchangeView) {
         const { sendStore, navigate } = this.props;
-
-        if (!this.props.accountStore!.isPaidUser) return;
 
         await sendStore.addRequestInputFromExchange(exchange);
         navigate(`/send`);

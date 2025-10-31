@@ -26,24 +26,14 @@ export const ClearAllButton = observer((props: {
     onClick={props.onClear}
 />);
 
-export const ExportAsHarButton = inject('accountStore')(observer((props: {
+export const ExportAsHarButton = observer((props: {
     className?: string,
-    accountStore?: AccountStore,
     events: ReadonlyArray<ViewableEvent>
 }) => {
-    const { isPaidUser } = props.accountStore!;
-
     return <IconButton
         icon={['fas', 'save']}
-        title={
-            isPaidUser
-                ? 'Export these exchanges as a HAR file'
-                : (
-                    'With Pro: Export requests & responses as a HAR file, ' +
-                    'to save for later or share with others'
-                )
-        }
-        disabled={!isPaidUser || props.events.length === 0}
+        title='Export these exchanges as a HAR file'
+        disabled={props.events.length === 0}
         onClick={async () => {
             const harContent = JSON.stringify(
                 await generateHar(props.events)
@@ -55,26 +45,16 @@ export const ExportAsHarButton = inject('accountStore')(observer((props: {
             saveFile(filename, 'application/har+json;charset=utf-8', harContent);
         }}
     />
-}));
+});
 
-export const ImportHarButton = inject('eventsStore', 'accountStore')(
+export const ImportHarButton = inject('eventsStore')(
     observer((props: {
-        accountStore?: AccountStore,
         eventsStore?: EventsStore
     }) => {
-        const { isPaidUser } = props.accountStore!;
-
         return <IconButton
             icon={['fas', 'folder-open']}
-            title={
-                isPaidUser
-                    ? 'Import exchanges from a HAR file'
-                    : (
-                        'With Pro: Import requests & responses from HAR files, ' +
-                        'to examine past recordings or data from other tools'
-                    )
-            }
-            disabled={!isPaidUser}
+            title='Import exchanges from a HAR file'
+            disabled={false}
             onClick={async () => {
                 const uploadedFile = await uploadFile('text', ['.har', 'application/har', 'application/har+json']);
                 if (uploadedFile) {

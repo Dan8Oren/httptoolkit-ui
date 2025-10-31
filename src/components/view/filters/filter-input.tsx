@@ -188,11 +188,7 @@ export const FilterInput = <T extends unknown>(props: {
         if (isSaveFiltersSuggestion(data.suggestion)) {
             if (!props.value) return; // No dice - we just ignore empty names
 
-            if (props.isPaidUser) {
-                props.onFiltersSaved(props.activeFilters.slice(1), props.value);
-            } else {
-                props.getPro('save-filter');
-            }
+            props.onFiltersSaved(props.activeFilters.slice(1), props.value);
             return;
         }
 
