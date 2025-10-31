@@ -3,7 +3,7 @@ import { observable, computed } from 'mobx';
 
 import { lazyObservablePromise } from '../../util/observable';
 
-// Local User interface to replace @httptoolkit/accounts dependency
+// Local User interface for simplified account management
 interface User {
     email?: string;
     featureFlags?: string[];
