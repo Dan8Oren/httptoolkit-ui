@@ -1,8 +1,8 @@
 import * as _ from 'lodash';
 import * as React from 'react';
 import * as polished from 'polished';
-import { observer, inject, disposeOnUnmount, Observer } from 'mobx-react';
-import { action, observable, reaction } from 'mobx';
+import { observer, inject, Observer } from 'mobx-react';
+import { action, observable } from 'mobx';
 import { Method, matchers } from 'mockttp';
 import {
     Draggable,
@@ -21,7 +21,6 @@ import {
     Matcher,
     Step,
     AvailableStep,
-    isPaidStep,
     InitialMatcher,
     getRuleTypeFromInitialMatcher,
     isCompatibleStep,
@@ -44,7 +43,6 @@ import {
 import { AccountStore } from '../../model/account/account-store';
 
 import { clickOnEnter, noPropagation } from '../component-utils';
-import { GetProOverlay } from '../account/pro-placeholders';
 import { LittleCard } from '../common/card';
 import {
     InitialMatcherRow,
@@ -682,71 +680,35 @@ class StepSection extends React.Component<{
     updateStep: (stepIndex: number, step: Step) => void;
 }> {
 
-    @observable
-    private demoStep: Step | undefined;
-
-    componentDidMount() {
-        // If the actual step ever changes, dump our demo step state:
-        disposeOnUnmount(this, reaction(
-            () => this.props.step,
-            () => { this.demoStep = undefined; }
-        ));
-    }
-
     render() {
         const {
-            isPaidUser,
-            getPro,
             ruleType,
             availableSteps,
             step: step,
             stepIndex: stepIndex
         } = this.props;
 
-        const shownStep = this.demoStep ?? step;
-
-        const isStepDemo = !isPaidUser &&
-            shownStep &&
-            isPaidStep(ruleType, shownStep);
-
         return <>
             <StepSelector
-                value={shownStep}
+                value={step}
                 ruleType={ruleType}
                 onChange={this.updateStep}
                 availableSteps={availableSteps}
                 stepIndex={stepIndex}
             />
 
-            { isStepDemo
-                // If you select a paid step with an unpaid account,
-                // show a step demo with a 'Get Pro' overlay:
-                ? <GetProOverlay getPro={getPro} source={`rule-${step.type}`}>
-                    <StepConfiguration
-                        ruleType={ruleType}
-                        step={shownStep}
-                        onChange={_.noop}
-                    />
-                </GetProOverlay>
-                : <StepConfiguration
-                    ruleType={ruleType}
-                    step={shownStep}
-                    onChange={this.updateStep}
-                />
-            }
+            <StepConfiguration
+                ruleType={ruleType}
+                step={step}
+                onChange={this.updateStep}
+            />
         </>;
     }
 
     @action.bound
     updateStep(step: Step) {
-        const { isPaidUser, stepIndex: stepIndex, ruleType, updateStep } = this.props;
-
-        // You can never update a paid step if you're not a paid user
-        if (!isPaidUser && isPaidStep(ruleType, step)) {
-            this.demoStep = step;
-        } else {
-            updateStep(stepIndex, step);
-        }
+        const { stepIndex: stepIndex, updateStep } = this.props;
+        updateStep(stepIndex, step);
     }
 
 }
