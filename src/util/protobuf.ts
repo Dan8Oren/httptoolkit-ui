@@ -1,4 +1,4 @@
-import parseRawProto from 'rawprotoparse';
+import { decode, isValidProtobuf, toObject, type PlainObject } from 'unproto';
 import { gunzipSync, inflateSync } from 'zlib';
 
 import { Headers } from '../types';
@@ -36,7 +36,8 @@ export function isProbablyProtobuf(input: Uint8Array) {
         [0, 1, 2, 5].includes(fieldType);
 }
 
-export const parseRawProtobuf = parseRawProto;
+export const parseRawProtobuf = (input: Uint8Array): PlainObject =>
+    toObject(decode(input).message);
 
 // GRPC message structure:
 // Ref: https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md
@@ -112,20 +113,12 @@ export const isProbablyGrpcProto = (input: Buffer, headers: Headers) => {
         )
 }
 
-export const isValidProtobuf = (input: Uint8Array) => {
-    try {
-        parseRawProtobuf(input);
-        return true;
-    } catch (e) {
-        return false;
-    }
-}
+export { isValidProtobuf };
 
 export const isValidGrpcProto = (input: Buffer, headers: Headers) => {
     try {
         const protobufMessages = extractProtobufFromGrpc(input, headers);
-        protobufMessages.forEach((msg) => parseRawProtobuf(msg));
-        return true;
+        return protobufMessages.every((msg) => isValidProtobuf(msg));
     } catch (e) {
         return false;
     }

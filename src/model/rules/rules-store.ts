@@ -1,13 +1,11 @@
 import * as _ from 'lodash';
 
 import {
-    requestSteps,
     MOCKTTP_PARAM_REF,
     PassThroughStepConnectionOptions,
     ProxySetting,
     RuleParameterReference,
-    ProxySettingSource,
-    webSocketSteps
+    ProxySettingSource
 } from 'mockttp';
 import * as MockRTC from 'mockrtc';
 
@@ -17,11 +15,9 @@ import {
     flow,
     computed,
     observe,
-    when,
     reaction,
     runInAction
 } from 'mobx';
-import * as uuid from 'uuid/v4';
 import * as serializr from 'serializr';
 import { encode as encodeBase64, decode as decodeBase64 } from 'base64-arraybuffer';
 import * as semver from 'semver';
@@ -49,6 +45,7 @@ import {
 import {
     HtkRuleGroup,
     flattenRules,
+    mapRules,
     ItemPath,
     isRuleGroup,
     getItemAtPath,
@@ -284,7 +281,9 @@ export class RulesStore {
             lookupOptions: this.proxyStore.dnsServers.length
                 ? { servers: this.proxyStore.dnsServers }
                 : undefined,
-            simulateConnectionErrors: true
+            simulateConnectionErrors: true,
+            mirrorTlsFingerprint: this.accountStore
+                .featureFlags.includes("tls-mirroring")
         };
 
         // Clone to ensure we touch & subscribe to everything here
@@ -662,7 +661,7 @@ export class RulesStore {
         const targetItem = targetParent.items[targetIndex];
 
         targetParent.items[targetIndex] = {
-            id: uuid(),
+            id: crypto.randomUUID(),
             title: "New group",
             items: [
                 targetItem,
@@ -681,6 +680,29 @@ export class RulesStore {
 
         draftGroup.title = newTitle;
         if (activeGroup) activeGroup.title = newTitle;
+    }
+
+    @action.bound
+    setItemActivated(itemId: string, activated: boolean): number {
+        const updatedRuleIds = new Set<string>();
+
+        // Updates active & draft rules directly (no save required)
+        [this.draftRules, this.rules].forEach((ruleRoot) => {
+            const item = findItem(ruleRoot, { id: itemId });
+            if (!item) return;
+
+            if (isRuleGroup(item)) {
+                mapRules(item, (rule) => {
+                    rule.activated = activated;
+                    updatedRuleIds.add(rule.id);
+                });
+            } else {
+                item.activated = activated;
+                updatedRuleIds.add(item.id);
+            }
+        });
+
+        return updatedRuleIds.size;
     }
 
     @action.bound

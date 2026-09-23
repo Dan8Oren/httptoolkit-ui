@@ -9,6 +9,7 @@ import type { WorkerFormatterKey } from '../../services/ui-worker-formatters';
 import { formatBufferAsync } from '../../services/ui-worker-api';
 import { ReadOnlyParams } from '../../components/common/editable-params';
 import { ImageViewer } from '../../components/editor/image-viewer';
+import { ExifBanner, ExifTags, parseImageExif } from '../../components/editor/exif-banner';
 import { formatJson } from '../../util/json';
 
 export interface EditorFormatter {
@@ -30,7 +31,20 @@ type FormatComponentConfig = {
     Component: FormatComponent;
 };
 
-type Formatter = EditorFormatter | FormatComponentConfig;
+// Optional per-formatter metadata banner. Renders above the body editor at the
+// card level (sibling of EditorCardContent), for read-only views only.
+export interface FormatterMetadata<T> {
+    cacheKey: symbol;
+    extract: (content: Buffer, headers?: Headers) => Promise<T | undefined>;
+    Component: React.ComponentType<{
+        metadata: T,
+        direction?: 'left' | 'right'
+    }>;
+}
+
+type Formatter = (EditorFormatter | FormatComponentConfig) & {
+    metadata?: FormatterMetadata<any>;
+};
 
 export function isEditorFormatter(input: any): input is EditorFormatter {
     return !!input.language;
@@ -43,7 +57,7 @@ const buildAsyncRenderer = (formatKey: WorkerFormatterKey) =>
 
 export const Formatters: { [key in ViewableContentType]: Formatter } = {
     raw: {
-        language: 'text',
+        language: 'hex',
         cacheKey: Symbol('raw'),
         isEditApplicable: false,
         render: (input: Buffer, headers?: Headers) => {
@@ -164,6 +178,11 @@ export const Formatters: { [key in ViewableContentType]: Formatter } = {
     },
     image: {
         layout: 'centered',
-        Component: ImageViewer
+        Component: ImageViewer,
+        metadata: {
+            cacheKey: Symbol('image-exif'),
+            extract: parseImageExif,
+            Component: ExifBanner
+        } satisfies FormatterMetadata<ExifTags>
     }
 };

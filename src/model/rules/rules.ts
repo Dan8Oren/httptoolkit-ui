@@ -291,6 +291,7 @@ const HiddenSteps = [
     'rtc-peer-proxy', // Not usable interactively
     'callback',
     'stream',
+    'informational-response', // Would be interesting eventually, not yet supported
     'wait-for-rtc-track', // Not super useful here I think
     'wait-for-request-body', // Not super useful here I think
 ] as const;

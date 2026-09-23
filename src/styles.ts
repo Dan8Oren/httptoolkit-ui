@@ -3,6 +3,8 @@ import * as polished from 'polished';
 import type { ThemeProps } from 'styled-components';
 import type * as monacoTypes from 'monaco-editor';
 
+import { generateHexColors, buildHexTokenRules } from './util/hex-colors';
+
 import "@fontsource/dm-sans";
 import "@fontsource/dm-mono";
 import "@fontsource/saira";
@@ -10,6 +12,7 @@ import "@fontsource/saira";
 import reset from 'styled-reset';
 
 const fontSizes = {
+    smallPrintSize: '12px',
     textInputFontSize: '13px',
     textSize: '14.5px',
     subHeadingSize: '17px',
@@ -54,6 +57,7 @@ export const lightTheme = {
     mainBackground: almostWhite,
     mainLowlightBackground: greyWhite,
     mainColor: inkGrey,
+    mainLowlightColor: darkishGrey,
 
     highlightBackground: white,
     highlightColor: inkGrey,
@@ -78,6 +82,7 @@ export const lightTheme = {
     inputWarningPlaceholder: '#8c5c1d', // Mix of warning + inkGrey
 
     popColor,
+    popOverlayColor: white,
 
     warningColor,
     warningBackground,
@@ -90,11 +95,15 @@ export const lightTheme = {
     linkColor: '#0000EE',
     visitedLinkColor: '#551A8B',
 
+    editorBackground: '#ffffff', // Monaco 'vs' theme default
+    hexColorMinContrast: 4.6, // WCAG AA (4.5) + margin for float rounding
+
     monacoTheme: 'vs-custom',
     monacoThemeBase: 'vs',
     monacoThemeOverrides: globalMonacoOverrides,
 
     modalGradient: 'radial-gradient(#40404b, #111118)',
+    modalColor: almostWhite,
 
     ...fontSizes,
 
@@ -109,6 +118,7 @@ export const darkTheme = {
     mainBackground: darkGrey,
     mainLowlightBackground: darkerGrey,
     mainColor: white,
+    mainLowlightColor: mediumGrey,
 
     highlightBackground: darkishGrey,
     highlightColor: white,
@@ -133,6 +143,7 @@ export const darkTheme = {
     inputWarningPlaceholder: '#e8b978', // Mix of warning + white
 
     popColor,
+    popOverlayColor: white,
 
     warningColor,
     warningBackground,
@@ -143,6 +154,9 @@ export const darkTheme = {
     linkColor: '#8699ff',
     visitedLinkColor: '#ac7ada',
 
+    editorBackground: inkBlack, // Matches editor.background override below
+    hexColorMinContrast: 4.6, // WCAG AA (4.5) + margin for float rounding
+
     monacoTheme: 'vs-dark-custom',
     monacoThemeBase: 'vs-dark',
     monacoThemeOverrides: {
@@ -151,6 +165,7 @@ export const darkTheme = {
     },
 
     modalGradient: `radial-gradient(${white}, ${lightGrey})`,
+    modalColor: darkGrey,
 
     ...fontSizes,
 
@@ -185,6 +200,7 @@ export const highContrastTheme = {
     mainBackground: '#000000',
     mainLowlightBackground: '#262626',
     mainColor: '#ffffff',
+    mainLowlightColor: '#ffffff',
 
     highlightBackground: '#ffffff',
     highlightColor: '#000',
@@ -209,6 +225,7 @@ export const highContrastTheme = {
     inputWarningPlaceholder: '#e1b374', // Mix of warning + white
 
     popColor,
+    popOverlayColor: '#ffffff',
 
     warningColor,
     warningBackground,
@@ -220,11 +237,15 @@ export const highContrastTheme = {
     linkColor: '#8699ff',
     visitedLinkColor: '#ac7ada',
 
+    editorBackground: '#000000', // Monaco 'hc-black' theme default
+    hexColorMinContrast: 7.5, // WCAG AAA (7) + margin for float rounding
+
     monacoTheme: 'hc-black-custom',
     monacoThemeBase: 'hc-black',
     monacoThemeOverrides: globalMonacoOverrides,
 
     modalGradient: '#f0f0f0',
+    modalColor: black,
 
     ...fontSizes,
 
@@ -242,10 +263,13 @@ export type Theme = typeof Themes[ThemeName];
 
 export function defineMonacoThemes(monaco: typeof monacoTypes) {
     Object.values(Themes).forEach((theme) => {
+        const hexColors = generateHexColors(theme.editorBackground, theme.hexColorMinContrast);
+        const hexRules = buildHexTokenRules(hexColors);
+
         monaco.editor.defineTheme(theme.monacoTheme, {
             base: theme.monacoThemeBase,
             inherit: true,
-            rules: [],
+            rules: hexRules,
             colors: theme.monacoThemeOverrides
         });
     });
@@ -273,6 +297,10 @@ export {
 export const GlobalStyles = createGlobalStyle`
     ${reset};
 
+    * {
+        box-sizing: border-box;
+    }
+
     body {
         font-family: ${p => p.theme.fontFamily};
         color: ${p => p.theme.mainColor};
@@ -297,7 +325,6 @@ export const GlobalStyles = createGlobalStyle`
 
     .slow-spin {
         animation: fa-spin 5s infinite linear;
-
 
     /* Override some Monaco CSS internals */
     .monaco-editor {

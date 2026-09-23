@@ -64,6 +64,15 @@ const RuleSerializer = serializr.custom(
         return data;
     },
     (data: HtkRule & { handler?: Step }, context: { args: DeserializationArgs }) => {
+        const steps = !!data.handler
+            // Fallback for old 'handler' exports from before Mockttp v4:
+            ? [deserializeByType(data.handler, StepLookup, context.args)]
+            : (data.steps ?? []).map((s) => deserializeByType(s, StepLookup, context.args));
+
+        if (steps.length === 0) {
+            throw new Error(`Can't load rule with no steps: ${data.id}`);
+        }
+
         return {
             id: data.id,
             type: data.type,
@@ -73,14 +82,7 @@ const RuleSerializer = serializr.custom(
             matchers: data.matchers.map((m) =>
                 deserializeByType(m, MatcherLookup, context.args)
             ),
-            ...(!!data.handler
-                ? { // Fallback for old 'handler' exports from before Mockttp v4:
-                    steps: [deserializeByType(data.handler, StepLookup, context.args)]
-                }
-                : {
-                    steps: data.steps.map((s) => deserializeByType(s, StepLookup, context.args))
-                }
-            ),
+            steps,
             completionChecker: 'completionChecker' in data &&
                 deserializeByType(
                     data.completionChecker,

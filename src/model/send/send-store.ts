@@ -1,6 +1,5 @@
 import * as _ from 'lodash';
 import { action, flow, observable, runInAction } from 'mobx';
-import * as uuid from 'uuid/v4';
 import {
     MOCKTTP_PARAM_REF,
     ProxySetting,
@@ -29,6 +28,7 @@ import { HttpExchange } from '../http/http-exchange';
 import { ResponseHeadEvent, ResponseStreamEvent } from './send-response-model';
 import {
     buildRequestInputFromExchange,
+    buildSentExchangeRequest,
     ClientProxyConfig,
     RequestInput,
     SendRequest,
@@ -75,7 +75,7 @@ export class SendStore {
     @action.bound
     addRequestInput(requestInput = new RequestInput()): RequestInput {
         const newSendRequest = observable({
-            id: uuid(),
+            id: crypto.randomUUID(),
             request: requestInput,
             sentExchange: undefined
         });
@@ -152,8 +152,6 @@ export class SendStore {
                 sendRequest.pendingSend.promise.then(clearPending, clearPending);
             });
 
-            const exchangeId = uuid();
-
             const passthroughOptions = this.rulesStore.activePassthroughOptions;
 
             const url = new URL(requestInput.url);
@@ -191,22 +189,9 @@ export class SendStore {
                 abortController.signal
             );
 
-            const exchange = this.eventStore.recordSentRequest({
-                id: exchangeId,
-                httpVersion: '1.1',
-                matchedRuleId: false,
-                method: requestInput.method,
-                url: requestInput.url,
-                protocol: url.protocol.slice(0, -1),
-                path: url.pathname,
-                headers: rawHeadersToHeaders(requestInput.headers),
-                rawHeaders: _.cloneDeep(requestInput.headers),
-                body: { buffer: encodedBody },
-                timingEvents: {
-                    startTime: Date.now()
-                } as TimingEvents,
-                tags: ['httptoolkit:manually-sent-request']
-            });
+            const exchange = this.eventStore.recordSentRequest(
+                buildSentExchangeRequest(requestInput, { buffer: encodedBody })
+            );
 
             // Keep the exchange up to date as response data arrives:
             trackResponseEvents(responseStream, exchange)
@@ -248,6 +233,14 @@ export class SendStore {
             runInAction(() => {
                 sendRequest.sentExchange = exchange;
             });
+
+            const requestRef = new WeakRef(sendRequest);
+            exchange.onCleanup(action(() => {
+                const request = requestRef.deref();
+                if (request?.sentExchange === exchange) {
+                    request.sentExchange = undefined;
+                }
+            }));
         } catch (e: any) {
             pendingRequestDeferred.reject(e);
             runInAction(() => {

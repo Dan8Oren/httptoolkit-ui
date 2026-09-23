@@ -58,7 +58,7 @@ export type HarResponse = Omit<MockttpResponse, 'body' | 'timingEvents'> &
     { body: HarBody; timingEvents: TimingEvents };
 
 export type SentRequest = Omit<MockttpInitiatedRequest, 'matchedRuleId' | 'body' | 'destination'> &
-    { matchedRuleId: false, body: { buffer: Buffer } };
+    { matchedRuleId: false, body: { buffer: Buffer } | HarBody };
 export type SentRequestResponse = Omit<MockttpResponse, 'body'> &
     { body: { buffer: Buffer } };
 export type SentRequestError = Pick<MockttpAbortedRequest, 'id' | 'timingEvents' | 'tags'> & {
@@ -229,6 +229,13 @@ export interface MessageBody {
     isPending(): this is PendingMessageBody;
     isDecoded(): this is DecodedMessageBody;
     isFailed(): this is FailedDecodeMessageBody;
+
+    // True once the body has reached a terminal state — either fully received or aborted
+    // mid-stream. Bodies built via the legacy (one-shot) ingestion path are complete from
+    // construction; bodies built via HttpBody.streaming() transition to complete via
+    // markBodyComplete() or markBodyAborted().
+    isComplete(): boolean;
+    isAborted(): boolean;
 
     waitForDecoding(): Promise<Buffer | undefined>;
     cleanup(): void;

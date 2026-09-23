@@ -103,6 +103,8 @@ export function InitialMatcherConfiguration(props: {
         case 'DELETE':
         case 'HEAD':
         case 'OPTIONS':
+        case 'TRACE':
+        case 'QUERY':
             return null;
         default:
             throw new UnreachableCheck(matcherKey);

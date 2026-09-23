@@ -1,7 +1,7 @@
 import * as React from 'react';
 import * as _ from 'lodash';
 import { reaction, computed } from 'mobx';
-import { observer } from 'mobx-react';
+import { observer, disposeOnUnmount } from 'mobx-react';
 import { SchemaObject } from 'openapi3-ts';
 import * as portals from 'react-reverse-portal';
 
@@ -109,7 +109,7 @@ export class ContentViewer extends React.Component<ContentViewerProps> {
 
         // Every time the rendered content changes, as long as it's not a 'loading' promise,
         // we fire a callback to notify that the content has been rendered.
-        reaction(() => {
+        disposeOnUnmount(this, reaction(() => {
             try {
                 return this.renderedContent;
             } catch (e) {}
@@ -119,7 +119,7 @@ export class ContentViewer extends React.Component<ContentViewerProps> {
                     this.props.onContentRendered?.();
                 });
             }
-        }, { fireImmediately: true });
+        }, { fireImmediately: true }));
     }
 
     @computed
@@ -142,11 +142,16 @@ export class ContentViewer extends React.Component<ContentViewerProps> {
 
         const { cache } = this.props;
         const cacheKey = this.formatter.cacheKey;
-        const cachedValue = cache.get(cacheKey) as ObservablePromise<string> | string | undefined;
+        const hasCachedValue = cache.has(cacheKey);
 
-        const renderingContent = cachedValue ||
-            this.formatter.render(this.contentBuffer, this.props.headers) as ObservablePromise<string> | string;
-        if (!cachedValue) cache.set(cacheKey, renderingContent);
+        let renderingContent: string | ObservablePromise<string>;
+        if (hasCachedValue) {
+            const cachedValue = cache.get(cacheKey) as ObservablePromise<string> | string;
+            renderingContent = cachedValue;
+        } else {
+            renderingContent = this.formatter.render(this.contentBuffer, this.props.headers) as ObservablePromise<string> | string;
+            cache.set(cacheKey, renderingContent);
+        }
 
         if (typeof renderingContent === 'string') {
             return renderingContent;

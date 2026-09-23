@@ -11,7 +11,8 @@ import {
     Pencil,
     PaperPlaneTilt,
     GearSix,
-    Star,
+    Lightning,
+    Sparkle,
     ChatText,
 
     // Functional icons
@@ -24,7 +25,8 @@ import {
     Moon,
     CircleHalf,
     Swatches,
-    Repeat
+    Repeat,
+    ListChecks
 } from '@phosphor-icons/react';
 
 export type IconKey = keyof typeof Icons;
@@ -45,7 +47,8 @@ const Icons = {
     Pencil,
     PaperPlaneTilt,
     GearSix,
-    Star,
+    Lightning,
+    Sparkle,
     ChatText,
 
     Pause,
@@ -57,7 +60,8 @@ const Icons = {
     Moon,
     CircleHalf,
     Swatches,
-    Repeat
+    Repeat,
+    ListChecks
 } as const;
 
 // Import required FA icons:
@@ -96,13 +100,13 @@ import { faExclamationTriangle } from '@fortawesome/free-solid-svg-icons/faExcla
 import { faExclamation } from '@fortawesome/free-solid-svg-icons/faExclamation';
 import { faLightbulb } from '@fortawesome/free-solid-svg-icons/faLightbulb';
 import { faCog } from '@fortawesome/free-solid-svg-icons/faCog';
-import { faStar } from '@fortawesome/free-regular-svg-icons/faStar';
 import { faMagic } from '@fortawesome/free-solid-svg-icons/faMagic';
 import { faSun } from '@fortawesome/free-solid-svg-icons/faSun';
 import { faMoon } from '@fortawesome/free-solid-svg-icons/faMoon';
 import { faAdjust } from '@fortawesome/free-solid-svg-icons/faAdjust';
 import { faUpload } from '@fortawesome/free-solid-svg-icons/faUpload';
 import { faDownload } from '@fortawesome/free-solid-svg-icons/faDownload';
+import { faFileArchive } from '@fortawesome/free-solid-svg-icons/faFileArchive';
 import { faPlay } from '@fortawesome/free-solid-svg-icons/faPlay';
 import { faPause } from '@fortawesome/free-solid-svg-icons/faPause';
 import { faGem } from '@fortawesome/free-solid-svg-icons/faGem';
@@ -175,13 +179,13 @@ library.add(
     faExclamation,
     faLightbulb,
     faCog,
-    faStar,
     faMagic,
     faSun,
     faMoon,
     faAdjust,
     faUpload,
     faDownload,
+    faFileArchive,
     faPlay,
     faPause,
     faGem,

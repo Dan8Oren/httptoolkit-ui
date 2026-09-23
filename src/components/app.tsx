@@ -1,6 +1,6 @@
 import * as _ from 'lodash';
 import * as React from 'react';
-import { computed } from 'mobx';
+import { autorun, computed, IReactionDisposer } from 'mobx';
 import { observer, inject } from 'mobx-react';
 import {
     Router,
@@ -16,6 +16,7 @@ import { useHotkeys, Ctrl } from '../util/ui';
 
 import { AccountStore } from '../model/account/account-store';
 import { UiStore } from '../model/ui/ui-store';
+import { ProxyStore } from '../model/proxy-store';
 import {
     serverVersion,
     versionSatisfies,
@@ -33,8 +34,10 @@ import { SettingsPage } from './settings/settings-page';
 
 import { HtmlContextMenu } from './html-context-menu';
 import { DisconnectedWarning } from './disconnected-warning';
+import { McpModal } from './mcp/mcp-modal';
+import { ZipExportDialog } from './view/zip-export-dialog';
 
-const AppContainer = styled.div<{ inert?: boolean }>`
+const AppContainer = styled.div`
     display: flex;
     height: 100%;
 
@@ -86,11 +89,33 @@ const AppKeyboardShortcuts = (props: {
 
 @inject('accountStore')
 @inject('uiStore')
+@inject('proxyStore')
 @observer
 class App extends React.Component<{
     accountStore: AccountStore,
-    uiStore: UiStore
+    uiStore: UiStore,
+    proxyStore: ProxyStore
 }> {
+
+    @computed
+    get canUseMcp() {
+        const mcpPath = this.props.proxyStore.toolPaths?.mcp;
+        return !!mcpPath && mcpPath.length > 0;
+    }
+
+    private closeZipExportOnOtherModal?: IReactionDisposer;
+
+    componentDidMount() {
+        this.closeZipExportOnOtherModal = autorun(() => {
+            if (this.props.accountStore.modal || this.props.uiStore.mcpModalOpen) {
+                this.props.uiStore.closeZipExport();
+            }
+        });
+    }
+
+    componentWillUnmount() {
+        this.closeZipExportOnOtherModal?.();
+    }
 
     @computed
     get canVisitSettings() {
@@ -164,6 +189,18 @@ class App extends React.Component<{
                 url: '/settings'
             },
 
+            ...(this.canUseMcp
+                ? [{
+                    name: 'MCP',
+                    title: 'Connect HTTP Toolkit to AI assistants via MCP',
+                    icon: 'Sparkle',
+                    position: 'bottom',
+                    type: 'callback',
+                    onClick: this.props.uiStore.openMcpModal
+                }]
+                : []
+            ),
+
             {
                 name: 'Give feedback',
                 title: "Suggest features or report issues",
@@ -207,6 +244,17 @@ class App extends React.Component<{
                 <DisconnectedWarning />
             </AppContainer>
 
+            { this.props.uiStore.mcpModalOpen && this.canUseMcp &&
+                <McpModal onClose={this.props.uiStore.closeMcpModal} />
+            }
+
+            { this.props.uiStore.zipExportRequest &&
+                <ZipExportDialog
+                    events={this.props.uiStore.zipExportRequest.events}
+                    onClose={this.props.uiStore.closeZipExport}
+                />
+            }
+
             {
                 contextMenuState &&
                     <HtmlContextMenu
@@ -220,7 +268,7 @@ class App extends React.Component<{
 
 // Annoying cast required to handle the store prop nicely in our types
 const AppWithStoreInjected = (
-    App as unknown as WithInjected<typeof App, 'accountStore' | 'uiStore'>
+    App as unknown as WithInjected<typeof App, 'accountStore' | 'uiStore' | 'proxyStore'>
 );
 
 export { AppWithStoreInjected as App };

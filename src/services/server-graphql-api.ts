@@ -17,6 +17,7 @@ import {
     ServerInterceptor,
     ApiError
 } from './server-api-types';
+import { getServerPort } from './desktop-api';
 
 interface GraphQLError {
     locations: Array<{ line: number, column: number }>;
@@ -31,7 +32,7 @@ export class GraphQLApiClient {
     ) {}
 
     async graphql<T extends {}>(operationName: string, query: string, variables: unknown) {
-        const response = await fetch('http://127.0.0.1:45457', {
+        const response = await fetch(`http://127.0.0.1:${getServerPort()}`, {
             method: 'POST',
             headers: {
                 ...(this.authToken ? {

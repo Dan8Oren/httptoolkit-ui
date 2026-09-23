@@ -3,6 +3,7 @@ import * as React from 'react';
 import { observable, action, autorun, computed, observe } from 'mobx';
 
 import { Theme, ThemeName, Themes } from '../../styles';
+import { ViewableEvent } from '../../types';
 import { lazyObservablePromise } from '../../util/observable';
 import { persist, hydrate } from '../../util/mobx-persist/persist';
 import { unreachableCheck, UnreachableCheck } from '../../util/error';
@@ -266,7 +267,10 @@ export class UiStore {
     viewScrollPosition: number | 'end' = 'end';
 
     @observable
-    selectedEventId: string | undefined;
+    selectedEventIds: Set<string> = observable.set<string>();
+
+    @observable
+    activeEventId: string | undefined;
 
     @computed
     get viewCardProps() {
@@ -449,15 +453,96 @@ export class UiStore {
     @persist @observable
     exportSnippetFormat: string | undefined;
 
+    @observable
+    mcpModalOpen: boolean = false;
+
+    @action.bound
+    openMcpModal() {
+        this.mcpModalOpen = true;
+    }
+
+    @action.bound
+    closeMcpModal() {
+        this.mcpModalOpen = false;
+    }
+
+    // The set of formats selected for the last ZIP export. May include
+    // formats that no longer exist (if HTTPSnippet changes) - readers
+    // should ignore any unrecognized ids here.
+    @persist('list') @observable
+    zipExportSelectedFormatIds: string[] = [];
+
+    @action.bound
+    setZipExportSelectedFormatIds(ids: string[]) {
+        this.zipExportSelectedFormatIds = ids;
+    }
+
+    @persist @observable
+    zipExportIncludeHar: boolean = false;
+
+    @action.bound
+    setZipExportIncludeHar(includeHar: boolean) {
+        this.zipExportIncludeHar = includeHar;
+    }
+
+    @observable.ref
+    zipExportRequest: {
+        events: ReadonlyArray<ViewableEvent>;
+    } | undefined;
+
+    @action.bound
+    openZipExport(events: ReadonlyArray<ViewableEvent>) {
+        this.zipExportRequest = { events };
+    }
+
+    @action.bound
+    closeZipExport() {
+        this.zipExportRequest = undefined;
+    }
+
     // Actions for persisting view state when switching tabs
     @action.bound
     setViewScrollPosition(position: number | 'end') {
         this.viewScrollPosition = position;
     }
 
+    // The various ways to (de)select one or more events:
+
     @action.bound
-    setSelectedEventId(eventId: string | undefined) {
-        this.selectedEventId = eventId;
+    selectSingleEvent(eventId: string | undefined) {
+        this.selectedEventIds.clear();
+        if (eventId) {
+            this.selectedEventIds.add(eventId);
+            this.activeEventId = eventId;
+        } else {
+            this.activeEventId = undefined;
+        }
+    }
+
+    @action.bound
+    toggleEventSelection(eventId: string) {
+        if (this.selectedEventIds.has(eventId)) {
+            this.selectedEventIds.delete(eventId);
+        } else {
+            this.selectedEventIds.add(eventId);
+        }
+        this.activeEventId = eventId;
+    }
+
+    @action.bound
+    setSelectedEvents(eventIds: string[]) {
+        this.selectedEventIds.clear();
+        for (const id of eventIds) {
+            this.selectedEventIds.add(id);
+        }
+        // Doesn't update activeEventId - this may also need
+        // changing, but depends on context.
+    }
+
+    @action.bound
+    clearSelection() {
+        this.selectedEventIds.clear();
+        this.activeEventId = undefined;
     }
 
     /**
@@ -486,8 +571,17 @@ export class UiStore {
 
         event.preventDefault();
 
+        // Right-click menus open at the cursor, other menus (e.g. button dropdowns) anchor
+        // to the bottom of the triggering element instead:
+        const anchorPosition = event.type === 'contextmenu'
+            ? undefined
+            : (() => {
+                const bounds = event.currentTarget.getBoundingClientRect();
+                return { x: bounds.left, y: bounds.bottom };
+            })();
+
         if (DesktopApi.openContextMenu) {
-            const position = { x: event.pageX, y: event.pageY };
+            const position = anchorPosition ?? { x: event.pageX, y: event.pageY };
             this.contextMenuState = undefined; // Should be set already, but let's be explicit
 
             DesktopApi.openContextMenu({
@@ -507,6 +601,7 @@ export class UiStore {
             this.contextMenuState = {
                 data,
                 event,
+                position: anchorPosition,
                 items
             };
         }

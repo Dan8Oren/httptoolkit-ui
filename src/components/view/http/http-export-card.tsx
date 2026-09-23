@@ -10,16 +10,15 @@ import { logError } from '../../../errors';
 
 
 import { UiStore } from '../../../model/ui/ui-store';
+import { exportHar, generateCodeSnippet } from '../../../model/ui/export';
 import {
-    exportHar,
-    generateCodeSnippet,
     getCodeSnippetFormatKey,
     getCodeSnippetFormatName,
     getCodeSnippetOptionFromKey,
     DEFAULT_SNIPPET_FORMAT_KEY,
     snippetExportOptions,
     SnippetOption
-} from '../../../model/ui/export';
+} from '../../../model/ui/snippet-formats';
 
 
 import {
@@ -36,6 +35,10 @@ interface ExportCardProps extends CollapsibleCardProps  {
     exchange: HttpExchangeView;
     uiStore?: UiStore;
 }
+
+const SnippetFormatSelector = styled(PillSelector)`
+    max-width: 33%;
+` as typeof PillSelector;
 
 const SnippetDescriptionContainer = styled.div`
     p {
@@ -98,7 +101,7 @@ const ExportSnippetEditor = observer((p: {
                     Find out more
                 </DocsLink>
                 <CopyButtonPill content={snippet}>
-                    {' '}Copy snippet
+                    Copy snippet
                 </CopyButtonPill>
             </SnippetDetailButtons>
         </SnippetDescriptionContainer>
@@ -134,6 +137,19 @@ const ExportHarPill = styled(observer((p: {
     margin-right: auto;
 `;
 
+const ExportZipPill = inject('uiStore')(observer((p: {
+    uiStore?: UiStore,
+    exchange: HttpExchangeView
+}) =>
+    <PillButton
+        title='Export this request as code snippets in a ZIP archive'
+        onClick={() => p.uiStore!.openZipExport([p.exchange])}
+    >
+        <Icon icon={['fas', 'file-archive']} /> Save snippet ZIP
+    </PillButton>
+));
+
+@inject('accountStore')
 @inject('uiStore')
 @observer
 export class HttpExportCard extends React.Component<ExportCardProps> {
@@ -144,8 +160,9 @@ export class HttpExportCard extends React.Component<ExportCardProps> {
         return <CollapsibleCard {...this.props}>
             <header>
                 <ExportHarPill exchange={exchange} />
+                <ExportZipPill exchange={exchange} />
 
-                <PillSelector<SnippetOption>
+                <SnippetFormatSelector<SnippetOption>
                     onChange={this.setSnippetOption}
                     value={this.snippetOption}
                     optGroups={snippetExportOptions}

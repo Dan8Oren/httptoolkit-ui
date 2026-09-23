@@ -6,7 +6,7 @@ import {
 import * as beautifyXml from 'xml-beautifier';
 
 import { Headers } from '../types';
-import { bufferToHex, bufferToString, getReadableSize } from '../util/buffer';
+import { asBuffer, bufferToHex, bufferToString, getReadableSize } from '../util/buffer';
 import { parseRawProtobuf, extractProtobufFromGrpc } from '../util/protobuf';
 import { formatJson } from '../util/json';
 
@@ -19,20 +19,69 @@ export function formatBuffer(buffer: ArrayBuffer, format: WorkerFormatterKey, he
     return WorkerFormatters[format](Buffer.from(buffer), headers);
 }
 
-const prettyProtobufView = (data: any) => JSON.stringify(data, (_key, value) => {
-    // Buffers have toJSON defined, so arrive here in JSONified form:
-    if (value.type === 'Buffer' && Array.isArray(value.data)) {
-        const buffer = Buffer.from(value.data);
+const PROTOBUF_INDENT = '  ';
 
-        return {
+// We serialize manually instead of using JSON.stringify() to handle BigInts and
+// buffers better. Does mean this isn't real JSON output, but doesn't matter.
+const serializeProtobufValue = (value: unknown, indent: string, output: string[]) => {
+    if (typeof value === 'bigint') {
+        output.push(value.toString());
+        return;
+    }
+
+    if (value instanceof Uint8Array) {
+        const buffer = asBuffer(value);
+        serializeProtobufValue({
             "Type": `Buffer (${getReadableSize(buffer)})`,
             "As string": bufferToString(buffer, 'detect-encoding'),
             "As hex": bufferToHex(buffer)
-        }
-    } else {
-        return value;
+        }, indent, output);
+        return;
     }
-}, 2);
+
+    if (Array.isArray(value)) {
+        if (value.length === 0) {
+            output.push('[]');
+            return;
+        }
+
+        const innerIndent = indent + PROTOBUF_INDENT;
+        output.push('[\n');
+        value.forEach((item, i) => {
+            if (i > 0) output.push(',\n');
+            output.push(innerIndent);
+            serializeProtobufValue(item, innerIndent, output);
+        });
+        output.push('\n', indent, ']');
+        return;
+    }
+
+    if (typeof value === 'object' && value !== null) {
+        const keys = Object.keys(value);
+        if (keys.length === 0) {
+            output.push('{}');
+            return;
+        }
+
+        const innerIndent = indent + PROTOBUF_INDENT;
+        output.push('{\n');
+        keys.forEach((key, i) => {
+            if (i > 0) output.push(',\n');
+            output.push(innerIndent, JSON.stringify(key), ': ');
+            serializeProtobufValue((value as Record<string, unknown>)[key], innerIndent, output);
+        });
+        output.push('\n', indent, '}');
+        return;
+    }
+
+    output.push(JSON.stringify(value) ?? 'null');
+};
+
+const prettyProtobufView = (data: unknown) => {
+    const output: string[] = [];
+    serializeProtobufValue(data, '', output);
+    return output.join('');
+};
 
 // A subset of all possible formatters (those allowed by body-formatting), which require
 // non-trivial processing, and therefore need to be processed async.
@@ -75,7 +124,21 @@ const WorkerFormatters = {
     },
     json: (content: Buffer) => {
         const asString = content.toString('utf8');
-        return formatJson(asString, { formatRecords: false });
+
+        // Do simplify parse + stringify where possible for speed - it's up to 1000x faster.
+        // We fall back to the relaxed formatJson() where that fails, which is slower but
+        // always comes up with something reasonable - unless it's very large, in which
+        // case we give up rather than hanging the UI:
+        try {
+            return JSON.stringify(JSON.parse(asString), null, 2);
+        } catch (e) {
+            if (content.byteLength <= 5_000_000) {
+                return formatJson(asString, { formatRecords: false });
+            } else {
+                // Large non-parseable content - we fall back to the raw string
+                return asString;
+            }
+        }
     },
     'json-records': (content: Buffer) => {
         const asString = content.toString('utf8');
@@ -92,15 +155,14 @@ const WorkerFormatters = {
         });
     },
     protobuf: (content: Buffer) => {
-        const data = parseRawProtobuf(content, { prefix: '' });
+        const data = parseRawProtobuf(content);
         return prettyProtobufView(data);
     },
     'grpc-proto': (content: Buffer, headers?: Headers) => {
         const protobufMessages = extractProtobufFromGrpc(content, headers ?? {});
 
-        let data = protobufMessages.map((msg) => parseRawProtobuf(msg, { prefix: '' }));
-        if (data.length === 1) data = data[0];
+        const messages = protobufMessages.map((msg) => parseRawProtobuf(msg));
 
-        return prettyProtobufView(data);
+        return prettyProtobufView(messages.length === 1 ? messages[0] : messages);
     }
 } as const;

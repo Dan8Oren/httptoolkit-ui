@@ -36,7 +36,7 @@ import { lazyObservablePromise } from '../util/observable';
 import { persist, hydrate } from '../util/mobx-persist/persist';
 import { isValidPort } from './network';
 import { serverVersion } from '../services/service-versions';
-import { DesktopApi } from '../services/desktop-api';
+import { getMockttpPort } from '../services/desktop-api';
 
 type HtkAdminClient =
     // WebRTC is only supported for new servers:
@@ -91,6 +91,10 @@ function startServer(
     }) as Promise<void>;
 }
 
+type TlsInterceptionConfig =
+    | Required<Pick<MockttpHttpsOptions, 'tlsPassthrough'>>
+    | Required<Pick<MockttpHttpsOptions, 'tlsInterceptOnly'>>;
+
 export function isValidPortConfiguration(portConfig: PortRange | undefined) {
     return portConfig === undefined || (
         portConfig.endPort >= portConfig.startPort &&
@@ -133,6 +137,9 @@ export class ProxyStore {
     @observable
     ruleParameterKeys: string[] = [];
 
+    @observable.ref
+    toolPaths: { [tool: string]: string[] } | undefined;
+
     @observable
     serverVersion!: string; // Definitely set *after* initialization
 
@@ -149,7 +156,16 @@ export class ProxyStore {
         // Load all persisted settings from storage
         await hydrate({
             key: 'server-store',
-            store: this
+            store: this,
+            dataTransform: (data: any) => {
+                // Migrate old separate tlsPassthroughConfig data to tlsInterceptionConfig field:
+                if (data.tlsPassthroughConfig && !data.tlsInterceptionConfig) {
+                    const hostnames = data.tlsPassthroughConfig as Array<{ hostname: string }>;
+                    data.tlsInterceptionConfig = { tlsPassthrough: hostnames };
+                    delete data.tlsPassthroughConfig;
+                }
+                return data;
+            }
         });
 
         console.log('Proxy settings loaded');
@@ -160,14 +176,14 @@ export class ProxyStore {
             http: any,
             webrtc: any
         }>({
-            adminServerUrl: 'http://127.0.0.1:45456',
+            adminServerUrl: `http://127.0.0.1:${getMockttpPort()}`,
             adminStreamReconnectAttempts: Infinity
         });
 
         // These are persisted initially, so we know if the user updates them that we
         // need to restart the proxy:
         this._http2CurrentlyEnabled = this.http2Enabled;
-        this._currentTlsPassthroughConfig = _.cloneDeep(this.tlsPassthroughConfig);
+        this._currentTlsInterceptionConfig = _.cloneDeep(this.tlsInterceptionConfig);
         this._currentKeyLogFilePath = this.keyLogFilePath;
 
         this.monitorRemoteClientConnection(this.adminClient);
@@ -180,7 +196,7 @@ export class ProxyStore {
                     // User configurable settings:
                     http2: this._http2CurrentlyEnabled,
                     https: {
-                        tlsPassthrough: this._currentTlsPassthroughConfig,
+                        ...this._currentTlsInterceptionConfig,
                         keyLogFile: this._currentKeyLogFilePath
                     } as MockttpHttpsOptions, // Cert/Key options are set by the server
                     socks: true,
@@ -214,6 +230,7 @@ export class ProxyStore {
             this.systemProxyConfig = config.systemProxy;
             this.dnsServers = config.dnsServers;
             this.ruleParameterKeys = config.ruleParameterKeys;
+            this.toolPaths = config.toolPaths;
             console.log('Config loaded');
         });
 
@@ -290,11 +307,11 @@ export class ProxyStore {
         return this._http2CurrentlyEnabled;
     }
 
-    @persist('list') @observable
-    tlsPassthroughConfig: Array<{ hostname: string }> = [];
-    private _currentTlsPassthroughConfig: Array<{ hostname: string }> = [];
-    get currentTlsPassthroughConfig() {
-        return this._currentTlsPassthroughConfig;
+    @persist('object') @observable
+    tlsInterceptionConfig: TlsInterceptionConfig = { tlsPassthrough: [] };
+    private _currentTlsInterceptionConfig: TlsInterceptionConfig = _.cloneDeep(this.tlsInterceptionConfig);
+    get currentTlsInterceptionConfig() {
+        return this._currentTlsInterceptionConfig;
     }
 
     @persist @observable

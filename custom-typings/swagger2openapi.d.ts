@@ -4,6 +4,9 @@ declare module 'swagger2openapi' {
     interface ConvertOptions {
         resolve?: boolean;
         patch?: boolean;
+        // Without this, conversion fails outright for any input containing repeated
+        // object references, as YAML anchors & merge keys produce when parsed.
+        anchors?: boolean;
     }
 
     export function convertObj(

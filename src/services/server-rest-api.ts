@@ -14,6 +14,8 @@ import {
     ApiError
 } from './server-api-types';
 
+import { getServerPort } from './desktop-api';
+
 import {
     RequestDefinition,
     RequestOptions
@@ -41,7 +43,7 @@ export class RestApiClient {
     ) {
         const operationName = `${method} ${path}`;
 
-        const response = await fetch(`http://127.0.0.1:45457${path}${
+        const response = await fetch(`http://127.0.0.1:${getServerPort()}${path}${
             Object.keys(query).length
                 ? '?' + new URLSearchParams(_.mapValues(query, (v) => v.toString())).toString()
                 : ''

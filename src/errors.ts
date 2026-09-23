@@ -1,19 +1,20 @@
 import * as Sentry from '@sentry/browser';
-import * as uuid from 'uuid/v4';
 
-import { UI_VERSION, serverVersion, desktopVersion } from './services/service-versions';
 import { ApiError } from './services/server-api-types';
 
 let sentryInitialized = false;
 
 export { Sentry };
 
-export function initSentry(dsn: string | undefined) {
+export function initSentry(
+    dsn: string | undefined,
+    tags: { [tag: string]: PromiseLike<string | undefined> } = {}
+) {
     if (!dsn) return;
 
     Sentry.init({
         dsn: dsn,
-        release: UI_VERSION,
+        release: process.env.UI_VERSION || "Unknown",
         ignoreErrors: [
             'ResizeObserver loop limit exceeded', // No visible effect: https://stackoverflow.com/a/50387233/68051
             'ResizeObserver loop completed with undelivered notifications.'
@@ -43,8 +44,12 @@ export function initSentry(dsn: string | undefined) {
     });
     sentryInitialized = true;
 
-    serverVersion.then((version) => addErrorTag('version:server', version));
-    desktopVersion.then((version) => addErrorTag('version:desktop', version));
+    Object.entries(tags).forEach(([tag, valuePromise]) => {
+        valuePromise.then(
+            (value) => { if (value) addErrorTag(tag, value); },
+            () => {} // Ignore failures - just don't add the tag
+        );
+    });
 
     // If we're running in the main window (not the SW),
     // stop reporting errors after the page starts unloading
@@ -58,7 +63,7 @@ export function initSentry(dsn: string | undefined) {
     // We use a random id to distinguish between many errors in one session vs
     // one error in many sessions. This isn't persisted and can't be used to
     // identify anybody between sessions.
-    const randomId = uuid();
+    const randomId = crypto.randomUUID();
     Sentry.getCurrentScope().setUser({
         id: randomId,
         username: `anon-${randomId}`

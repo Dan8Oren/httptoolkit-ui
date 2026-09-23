@@ -30,6 +30,8 @@ export const ExportAsHarButton = observer((props: {
     className?: string,
     events: ReadonlyArray<ViewableEvent>
 }) => {
+    const isPaidUser = true;
+
     return <IconButton
         icon={['fas', 'save']}
         title='Export these exchanges as a HAR file'
@@ -51,6 +53,8 @@ export const ImportHarButton = inject('eventsStore')(
     observer((props: {
         eventsStore?: EventsStore
     }) => {
+        const isPaidUser = true;
+
         return <IconButton
             icon={['fas', 'folder-open']}
             title='Import exchanges from a HAR file'

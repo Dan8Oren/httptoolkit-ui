@@ -39,7 +39,7 @@ function getBody(message: MockttpBreakpointedRequest | MockttpBreakpointedRespon
         message.body.buffer,
         asHeaderArray(message.headers['content-encoding'])
     ).catch((e) => {
-        logError(e);
+        console.log("Breakpoint body decoding failed", e);
         const error = dedent`
             HTTP TOOLKIT ERROR: Could not decode body, \
             check content-encoding

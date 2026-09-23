@@ -8,7 +8,10 @@ const authToken = urlParams.get('authToken');
 localForage.setItem('latest-auth-token', authToken);
 
 import { initSentry, logError } from './errors';
-initSentry(process.env.SENTRY_DSN);
+initSentry(process.env.SENTRY_DSN, {
+    'version:server': serverVersion,
+    'version:desktop': desktopVersion
+});
 
 import * as _ from 'lodash';
 import * as React from 'react';
@@ -32,7 +35,7 @@ import { InterceptorStore } from './model/interception/interceptor-store';
 import { ApiStore } from './model/api/api-store';
 import { SendStore } from './model/send/send-store';
 
-import { serverVersion, lastServerVersion, UI_VERSION } from './services/service-versions';
+import { serverVersion, desktopVersion, lastServerVersion, UI_VERSION } from './services/service-versions';
 import {
     attemptServerUpdate,
     checkForOutdatedComponents,
@@ -42,6 +45,8 @@ import {
 import { App } from './components/app';
 import { StyleProvider } from './components/style-provider';
 import { ErrorBoundary } from './components/error-boundary';
+
+import { initializeUiApi } from './services/ui-api/api-interface';
 
 console.log(`Initialising UI (version ${UI_VERSION})`);
 
@@ -97,6 +102,10 @@ const appStartupPromise = Promise.all(
     Object.values(stores).map(store => store.initialized)
 );
 initMetrics();
+
+// The UI exposes an API itself, allowing external components (the desktop shell) to access
+// UI state for the MCP server etc.
+initializeUiApi({ accountStore, eventsStore, proxyStore, interceptorStore, rulesStore });
 
 // Once the app is loaded, show the app
 appStartupPromise.then(() => {

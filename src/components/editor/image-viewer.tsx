@@ -7,7 +7,7 @@ import { styled } from '../../styles';
 export const ImageViewer = styled((p: {
     className?: string
     content: Buffer,
-    rawContentType: string
+    rawContentType: string | undefined
 }) => <img
     className={p.className}
     src={`data:${p.rawContentType || ''};base64,${p.content.toString('base64')}`}

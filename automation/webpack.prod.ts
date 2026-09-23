@@ -25,6 +25,23 @@ console.log(CSP_REPORT_URL
     : `CSP reporting skipped (uri: ${process.env.REPORT_URI}. version: ${process.env.UI_VERSION})`
 );
 
+
+// Output compiled CSP into a Caddy config file, that's later imported by our Caddyfile:
+const processCsp = (type: 'report' | 'strict') => (
+    builtPolicy: any,
+    _htmlPluginData: any,
+    _obj: any,
+    compilation: any
+) => {
+    const header = `
+        header ${
+            type === 'strict' ? 'Content-Security-Policy' : 'Content-Security-Policy-Report-Only'
+        } "${builtPolicy}"
+        header Reporting-Endpoints \`csp-endpoint="${CSP_REPORT_URL}"\`
+    `;
+    compilation.emitAsset(`csp-${type}.caddyfile`, new RawSource(header));
+}
+
 export default merge(common, {
     mode: "production",
 
@@ -40,7 +57,7 @@ export default merge(common, {
             // Split out various extra chunks for libraries that we know to be large & either
             // rarely used or updated differently to other code in the frontend. The goal is to
             // avoid re-downloading large non-updated libs when often-updated libs change.
-            // This is a bit suspect - definitely more art then science right now.
+            // This is a bit suspect - definitely more art than science right now.
             cacheGroups: {
                 // Zstd is rarely used, big-ish, always loaded async, and v rarely changed:
                 zstd: {
@@ -129,6 +146,8 @@ export default merge(common, {
         }),
         ...(CSP_REPORT_URL
             ? [
+
+                // Report-only CSP, covering roughly where we're aiming to be right now:
                 new CspHtmlWebpackPlugin({
                     'base-uri': "'self'",
                     'default-src': "'none'",
@@ -143,12 +162,14 @@ export default merge(common, {
                     'script-src': [
                         "'report-sample'",
                         "'unsafe-eval'", // For both wasm & real eval() uses
+                        "'wasm-unsafe-eval'",
                         "'self'",
-                        'https://cdn.auth0.com/', 'https://cdn.eu.auth0.com/', 'https://secure.gravatar.com'
+                        "https://secure.gravatar.com"
                     ],
                     'connect-src': [
                         "'self'", 'data:',
-                        'http://127.0.0.1:45456', 'http://127.0.0.1:45457', 'ws://127.0.0.1:45456',
+                        // Server ports are dynamic, so we allow all localhost here
+                        'http://127.0.0.1:*', 'ws://127.0.0.1:*',
                         'https://*.httptoolkit.tech', 'https://*.ingest.us.sentry.io'
                     ],
                     'report-uri': CSP_REPORT_URL,
@@ -164,18 +185,39 @@ export default merge(common, {
                         'style-src': false
                     },
                     // Output CSP into a Caddy config file, that's imported by Caddyfile
-                    processFn: (
-                        builtPolicy: any,
-                        _htmlPluginData: any,
-                        _obj: any,
-                        compilation: any
-                    ) => {
-                        const header = `
-                            header Content-Security-Policy-Report-Only "${builtPolicy}"
-                            header Reporting-Endpoints \`csp-endpoint="${CSP_REPORT_URL}"\`
-                        `;
-                        compilation.emitAsset('csp.caddyfile', new RawSource(header));
-                    }
+                    processFn: processCsp('report')
+                } as any),
+                // Actually strict CSP, covering what I'm pretty sure tested & known to be
+                // safe right now:
+                new CspHtmlWebpackPlugin({
+                    'base-uri': "'self'",
+                    'default-src': "*",
+                    'object-src': "'none'",
+                    'frame-ancestors': "'none'",
+                    'img-src': ["*", "data:"],
+                    'font-src': "*",
+                    'style-src': ["'report-sample'", "*", "'unsafe-inline'"],
+                    'frame-src': "https://login.httptoolkit.tech",
+                    'script-src': [
+                        "'report-sample'",
+                        "'unsafe-eval'", // For both wasm & real eval() uses
+                        "'wasm-unsafe-eval'",
+                        "'self'",
+                        "*"
+                    ],
+                    'report-uri': CSP_REPORT_URL,
+                    'report-to': 'csp-endpoint'
+                }, {
+                    enabled: true,
+                    hashEnabled: {
+                        'script-src': true,
+                        'style-src': false
+                    },
+                    nonceEnabled: {
+                        'script-src': false,
+                        'style-src': false
+                    },
+                    processFn: processCsp('strict')
                 } as any)
             ]
         : [])

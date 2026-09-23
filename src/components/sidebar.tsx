@@ -139,7 +139,14 @@ const SidebarButton = styled(
 )`
     ${sidebarItemStyles}
 
-    opacity: 0.6;
+    color: ${p => p.theme.mainColor};
+    opacity: 0.8;
+
+    &:hover, &:focus {
+        outline: none;
+        color: ${p => p.theme.popColor};
+        opacity: 1;
+    }
 
     ${(p) => p.highlight && css`
         color:  ${p.theme.popColor};

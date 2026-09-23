@@ -1325,8 +1325,8 @@ class HeadersTransformConfig<T extends RequestTransform | ResponseTransform> ext
                 onChange={onTransformTypeChange}
             >
                 <option value='none'>Use the original { type } headers</option>
-                <option value='updateHeaders'>Update the { type } headers</option>
-                <option value='replaceHeaders'>Replace the { type } headers</option>
+                <option value='updateHeaders'>Override specific { type } headers</option>
+                <option value='replaceHeaders'>Replace all { type } headers</option>
             </SelectTransform>
             {
                 selected !== 'none' && <TransformDetails>

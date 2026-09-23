@@ -1,6 +1,6 @@
 import * as _ from 'lodash';
 import * as React from 'react';
-import { observable, autorun, action } from 'mobx';
+import { observable, autorun, action, computed } from 'mobx';
 import { disposeOnUnmount, observer } from 'mobx-react';
 import type { SchemaObject } from 'openapi-directory';
 import * as portals from 'react-reverse-portal';
@@ -17,7 +17,8 @@ import {
     EditorCardContent,
     ReadonlyBodyCardHeader,
     getBodyDownloadFilename,
-    BodyCodingErrorBanner
+    BodyCodingErrorBanner,
+    BodyInfoBanner
 } from '../../editor/body-card-components';
 
 import { LoadingCard } from '../../common/loading-card';
@@ -56,9 +57,20 @@ export class HttpBodyCard extends React.Component<ExpandableCardProps & {
         }));
     }
 
+    @computed
+    get contentViewOptions() {
+        const { message } = this.props;
+        return getCompatibleTypes(
+            message.contentType,
+            getHeaderValue(message.headers, 'content-type'),
+            message.body,
+            message.headers,
+        );
+    }
+
     @action.bound
     onChangeContentType(contentType: ViewableContentType | undefined) {
-        if (contentType === this.props.message.contentType) {
+        if (contentType === this.contentViewOptions.preferredContentType) {
             this.selectedContentType = undefined;
         } else {
             this.selectedContentType = contentType;
@@ -82,15 +94,14 @@ export class HttpBodyCard extends React.Component<ExpandableCardProps & {
             editorNode
         } = this.props;
 
-        const compatibleContentTypes = getCompatibleTypes(
-            message.contentType,
-            getHeaderValue(message.headers, 'content-type'),
-            message.body,
-            message.headers,
-        );
-        const decodedContentType = compatibleContentTypes.includes(this.selectedContentType!)
+        const {
+            preferredContentType,
+            availableContentTypes
+        } = this.contentViewOptions;
+
+        const decodedContentType = availableContentTypes.includes(this.selectedContentType!)
             ? this.selectedContentType!
-            : message.contentType;
+            : preferredContentType;
 
         if (message.body.isDecoded()) {
             // We have successfully decoded the body content, show it:
@@ -113,10 +124,19 @@ export class HttpBodyCard extends React.Component<ExpandableCardProps & {
                         onCollapseToggled={onCollapseToggled}
 
                         selectedContentType={decodedContentType}
-                        contentTypeOptions={compatibleContentTypes}
+                        contentTypeOptions={availableContentTypes}
                         onChangeContentType={this.onChangeContentType}
                     />
                 </header>
+                <BodyInfoBanner
+                    content={message.body.decodedData}
+                    contentType={decodedContentType}
+                    headers={message.headers}
+                    cache={message.cache}
+                    // The card drops its direction marker when expanded, so
+                    // the banner should use symmetric edge-to-edge margins.
+                    direction={expanded ? undefined : direction}
+                />
                 <EditorCardContent showFullBorder={!expanded}>
                     <ContentViewer
                         contentId={editorKey}
@@ -204,7 +224,7 @@ export class HttpBodyCard extends React.Component<ExpandableCardProps & {
                         onCollapseToggled={onCollapseToggled}
 
                         selectedContentType={decodedContentType}
-                        contentTypeOptions={compatibleContentTypes}
+                        contentTypeOptions={availableContentTypes}
                         onChangeContentType={this.onChangeContentType}
                     />
                 </header>

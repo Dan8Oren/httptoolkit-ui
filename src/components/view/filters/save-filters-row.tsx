@@ -61,7 +61,7 @@ export const SaveFiltersRow = (props: {
                 } as { `'${props.query}'` || '...' }
             </>
             : <>
-                <Icon icon={['far', 'star']} />
+                <Icon icon='Lightning' />
                 Get Pro to save {
                     props.filterCount > 1
                     ? `these ${props.filterCount} filters`

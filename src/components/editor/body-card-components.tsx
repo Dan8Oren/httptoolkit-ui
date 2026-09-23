@@ -9,12 +9,18 @@ import { WarningIcon } from '../../icons';
 import { asHeaderArray, getHeaderValue, getHeaderValues } from '../../model/http/headers';
 import { saveFile } from '../../util/ui';
 import { ErrorLike } from '../../util/error';
+import {
+    ObservablePromise,
+    observablePromise
+} from '../../util/observable';
 
 import {
     EditableContentType,
     ViewableContentType,
     getContentEditorName
 } from '../../model/events/content-types';
+import { Formatters } from '../../model/events/body-formatting';
+import { ObservableCache } from '../../model/observable-cache';
 import { getReadableSize } from '../../util/buffer';
 import { EditableBody } from '../../model/http/editable-body';
 
@@ -170,6 +176,37 @@ const EncodingErrorMessage = styled(ContentMonoValue)`
     padding: 0;
     margin: 10px 0;
 `;
+
+// Renders a per-formatter metadata banner above the body editor, if the
+// active content type's formatter declares one (e.g. EXIF for images).
+// Read-only views only — editable bodies don't surface metadata.
+export const BodyInfoBanner = observer((props: {
+    content: Buffer | undefined,
+    contentType: ViewableContentType,
+    headers: Headers,
+    cache: ObservableCache,
+    direction?: 'left' | 'right'
+}) => {
+    const { content, contentType, headers, cache, direction } = props;
+    if (!content) return null;
+
+    const metadata = Formatters[contentType]?.metadata;
+    if (!metadata) return null;
+
+    let extraction = cache.get(metadata.cacheKey) as
+        ObservablePromise<unknown> | undefined;
+    if (!extraction) {
+        extraction = observablePromise(metadata.extract(content, headers));
+        cache.set(metadata.cacheKey, extraction);
+    }
+
+    if (extraction.state !== 'fulfilled') return null;
+    const resolved = extraction.value;
+    if (resolved === undefined || resolved === null) return null;
+
+    const Component = metadata.Component;
+    return <Component metadata={resolved} direction={direction} />;
+});
 
 export const BodyCodingErrorBanner = (props: {
     type: 'encoding' | 'decoding'

@@ -22,6 +22,7 @@ export interface ServerConfig {
     systemProxy: ProxySetting | undefined;
     dnsServers: string[];
     ruleParameterKeys: string[];
+    toolPaths?: { [tool: string]: string[] };
 }
 
 export class ApiError extends Error {

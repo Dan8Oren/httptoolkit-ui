@@ -16,7 +16,9 @@ import {
     InputWebSocketMessage,
     TlsSocketMetadata,
     ViewableEvent,
-    HttpExchangeView
+    HttpExchangeView,
+    RawHeaders,
+    RawTrailers
 } from '../../types';
 
 import { stringToBuffer } from '../../util/buffer';
@@ -81,6 +83,12 @@ export interface HarEntry extends HarFormat.Entry {
     _pinned?: true;
 }
 
+const compareHarEntryStartTimes = (
+    a: Pick<HarFormat.Entry, 'startedDateTime'>,
+    b: Pick<HarFormat.Entry, 'startedDateTime'>
+) => dateFns.parse(a.startedDateTime).getTime() -
+    dateFns.parse(b.startedDateTime).getTime();
+
 export interface HarWebSocketMessage {
     type: 'send' | 'receive';
     opcode: 1 | 2;
@@ -104,14 +112,22 @@ export async function generateHar(
     events: readonly ViewableEvent[],
     options: HarGenerationOptions = { bodySizeLimit: HAR_BODY_SIZE_LIMIT }
 ): Promise<Har> {
-    const [exchanges, otherEvents] = _.partition(events, e => e.isHttp()) as [
+    const [allExchanges, otherEvents] = _.partition(events, e => e.isHttp()) as [
         HttpExchangeView[], CollectedEvent[]
     ];
+
+    // Filter out exchanges with client errors (fundamental request parsing failures) -
+    // these contain best-guess data that may not be valid in a HAR:
+    const exchanges = allExchanges.filter(e =>
+        !e.tags.some(tag => tag.startsWith('client-error:'))
+    );
 
     const errors = otherEvents.filter(e => e.isTlsFailure()) as FailedTlsConnection[];
 
     const sourcePages = getSourcesAsHarPages(exchanges);
-    const entries = await Promise.all(exchanges.map(e => generateHarHttpEntry(e, options)));
+    const entries = (await Promise.all(
+        exchanges.map(e => generateHarHttpEntry(e, options))
+    )).sort(compareHarEntryStartTimes);
     const errorEntries = errors.map(generateHarTlsError);
 
     return {
@@ -128,13 +144,8 @@ export async function generateHar(
     };
 }
 
-function asHarHeaders(headers: Headers | Trailers) {
-    return _.map(headers, (headerValue, headerKey) => ({
-        name: headerKey,
-        value: _.isArray(headerValue)
-            ? headerValue.join(',')
-            : headerValue!
-    }))
+function asHarHeaders(headers: RawHeaders | RawTrailers) {
+    return headers.map(([name, value]) => ({ name, value }));
 }
 
 function asHtkHeaders(headers: HarFormat.Header[]) {
@@ -201,9 +212,9 @@ export function generateHarRequest(
         url: request.parsedUrl.toString(),
         httpVersion: `HTTP/${request.httpVersion || '1.1'}`,
         cookies: asHarRequestCookies(request.headers),
-        headers: asHarHeaders(request.headers),
-        ...(request.trailers ? {
-            _trailers: asHarHeaders(request.trailers)
+        headers: asHarHeaders(request.rawHeaders),
+        ...(request.rawTrailers ? {
+            _trailers: asHarHeaders(request.rawTrailers)
         } : {}),
         queryString: Array.from(request.parsedUrl.searchParams.entries()).map(
             ([paramKey, paramValue]) => ({
@@ -357,7 +368,7 @@ async function generateHarResponse(
         statusText: response.statusMessage,
         httpVersion: `HTTP/${request.httpVersion || '1.1'}`,
         cookies: asHarResponseCookies(response.headers),
-        headers: asHarHeaders(response.headers),
+        headers: asHarHeaders(response.rawHeaders),
         content: Object.assign(
             {
                 mimeType: getHeaderValue(response.headers, 'content-type') ||
@@ -526,11 +537,7 @@ export async function parseHar(harContents: unknown): Promise<ParsedHar> {
     const pinnedIds: string[] = []
 
     har.log.entries
-    .sort((a, b) => {
-        const aStartTime = dateFns.parse(a.startedDateTime).getTime();
-        const bStartTime = dateFns.parse(b.startedDateTime).getTime();
-        return aStartTime - bStartTime;
-    })
+    .sort(compareHarEntryStartTimes)
     .forEach((entry, i) => {
         const id = baseId + i;
         const isWebSocket = entry._resourceType === 'websocket';

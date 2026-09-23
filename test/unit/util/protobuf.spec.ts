@@ -1,7 +1,7 @@
 import { expect } from "../../test-setup";
 
 import { Headers } from '../../../src/types';
-import { isProbablyProtobuf, parseRawProtobuf, extractProtobufFromGrpc } from "../../../src/util/protobuf";
+import { isProbablyProtobuf, isValidProtobuf, parseRawProtobuf, extractProtobufFromGrpc } from "../../../src/util/protobuf";
 
 const bufferFromHex = (hex: string) => Buffer.from(hex.replace(/:/g, ''), 'hex');
 const uint32HexLengthFromHexColon = (hex: string) => ((hex.length + 1) / 3).toString(16).padStart(8, '0');  // no overflow check
@@ -31,9 +31,9 @@ message M2 {
 
 const m2 = '18:7b:d2:02:19:48:65:6c:6c:6f:20:57:6f:72:6c:64:20:77:69:74:68:20:55:54:46:38:20:e2:86:90:99:06:b9:c7:ad:df:47:bd:d9:41';
 const m2Js = {
-    "3": 123,
+    "3": BigInt(123), // All integers are decoded as bigints, regardless of declared width
     "42": "Hello World with UTF8 ←",
-    "99": bufferFromHex(m2.slice(-8 * 3 + 1)), // 1727340414.715315 as double (<!> often interpreted as fixed64 instead of double without schema)
+    "99": 1727340414.715315, // Inferred as a double, not a fixed64, from the bit pattern
 }
 
 // Fixed Huffman coding (with checksum)
@@ -85,6 +85,75 @@ describe("isProbablyProtobuf", () => {
 
 });
 
+describe("parseRawProtobuf", () => {
+
+    it("should decode strings and integers", () => {
+        expect(parseRawProtobuf(bufferFromHex(m1))).to.deep.equal(m1Js);
+    });
+
+    it("should decode integers wider than a JS number without losing precision", () => {
+        // uint64 #1 = 2^53 + 1, which is not representable as a JS number:
+        expect(
+            parseRawProtobuf(bufferFromHex('08:81:80:80:80:80:80:80:10'))
+        ).to.deep.equal({ "1": BigInt('9007199254740993') });
+    });
+
+    it("should decode fixed64 doubles as doubles, not raw bytes", () => {
+        expect(parseRawProtobuf(bufferFromHex(m2))).to.deep.equal(m2Js);
+    });
+
+    it("should decode fixed32 floats as floats", () => {
+        // float #1 = 0.5
+        expect(
+            parseRawProtobuf(bufferFromHex('0d:00:00:00:3f'))
+        ).to.deep.equal({ "1": 0.5 });
+    });
+
+    it("should unpack packed repeated varints", () => {
+        // repeated int32 #1 = [1, 2, 3, 400, 50000], packed
+        expect(
+            parseRawProtobuf(bufferFromHex('0a:08:01:02:03:90:03:d0:86:03'))
+        ).to.deep.equal({ "1": [BigInt(1), BigInt(2), BigInt(3), BigInt(400), BigInt(50000)] });
+    });
+
+    it("should decode the largest valid field number", () => {
+        expect(
+            parseRawProtobuf(bufferFromHex(mLastFieldNb))
+        ).to.deep.equal({ "536870911": "Hello World" });
+    });
+
+    it("should return the fields it could read from truncated data, without throwing", () => {
+        const truncated = bufferFromHex(`${m1}:0a:0b:48:65`); // Valid message, then a truncated field
+        expect(parseRawProtobuf(truncated)).to.deep.equal(m1Js);
+        expect(isValidProtobuf(truncated)).to.equal(false);
+    });
+
+});
+
+describe("isValidProtobuf", () => {
+
+    it("should accept well-formed protobuf", () => {
+        expect(isValidProtobuf(bufferFromHex(m1))).to.equal(true);
+    });
+
+    it("should reject empty data", () => {
+        expect(isValidProtobuf(Buffer.from(''))).to.equal(false);
+    });
+
+    it("should reject field number 0", () => {
+        expect(isValidProtobuf(bufferFromHex('00:01'))).to.equal(false);
+    });
+
+    it("should reject reserved wire types", () => {
+        expect(isValidProtobuf(bufferFromHex('0e:01'))).to.equal(false);
+    });
+
+    it("should reject data with trailing bytes", () => {
+        expect(isValidProtobuf(bufferFromHex(`${m1}:ff:ff`))).to.equal(false);
+    });
+
+});
+
 const GRPCFixtures: { [key: string]: [string, Headers, any[]] } = {
     // No compression
     "should handle simplest gRPC payload (basic mono-message, uncompressed)": [
@@ -124,7 +193,7 @@ const GRPCFixtures: { [key: string]: [string, Headers, any[]] } = {
 describe("extractProtobufFromGrpc", () => {
 
     Object.entries(GRPCFixtures).forEach(([testName, [hexGrpc, headers, expectedMsgs]]) => it(testName, () => {
-        const protoMsgs = extractProtobufFromGrpc(bufferFromHex(hexGrpc), headers).map((msg) => parseRawProtobuf(msg, { prefix: '' }));
+        const protoMsgs = extractProtobufFromGrpc(bufferFromHex(hexGrpc), headers).map((msg) => parseRawProtobuf(msg));
         expect(protoMsgs).to.deep.equal(expectedMsgs);
     }));
 

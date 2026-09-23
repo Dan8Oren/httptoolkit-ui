@@ -34,6 +34,8 @@ interface DesktopApi {
 
     getDesktopVersion?: () => string | undefined;
     getServerAuthToken?: () => string | undefined;
+    getServerPort?: () => number | undefined;
+    getMockttpPort?: () => number | undefined;
     getDeviceInfo?: () => {
         platform?: string;
         release?: string;
@@ -47,6 +49,15 @@ interface DesktopApi {
 
     openContextMenu?: (options: NativeContextMenuDefinition) => Promise<string | undefined>;
     restartApp?: () => Promise<void>;
+
+    /**
+     * Given a file object, returns its path. If the path isn't available (e.g. file
+     * object constructed, not selected) then this returns null. If file isn't a
+     * File at all, it throws.
+     */
+    getPathForFile?: (file: File) => string | null;
+
+    setComponentVersions?: (versions: Record<string, string>) => void;
 }
 
 interface NativeContextMenuDefinition {
@@ -82,6 +93,15 @@ const global = typeof globalThis !== 'undefined'
     : {} as Window;
 
 export const DesktopApi: DesktopApi = global.desktopApi ?? {};
+
+const DEFAULT_SERVER_PORT = 45457;
+const DEFAULT_MOCKTTP_PORT = 45456;
+
+export const getServerPort = (): number =>
+    DesktopApi.getServerPort?.() ?? DEFAULT_SERVER_PORT;
+
+export const getMockttpPort = (): number =>
+    DesktopApi.getMockttpPort?.() ?? DEFAULT_MOCKTTP_PORT;
 
 export function canRestartApp(): boolean {
     return window.desktopApi?.restartApp !== undefined ||

@@ -76,7 +76,7 @@ function tryParseUrl(url: string): ParsedUrl | undefined  {
 
 const unparseableUrl = Object.assign(new URL("unknown://unparseable.invalid/"), { parseable: false } as const);
 
-function addRequestMetadata(request: InputRequest): HtkRequest {
+export function buildHtkRequest(request: InputRequest): HtkRequest {
     try {
         return Object.assign(request, {
             parsedUrl: request.url
@@ -112,7 +112,7 @@ export class HttpExchange extends HTKEventBase implements HttpExchangeView {
     ) {
         super();
 
-        this.request = addRequestMetadata(request);
+        this.request = buildHtkRequest(request);
 
         this.timingEvents = request.timingEvents;
         this.tags = this.request.tags;
@@ -335,6 +335,14 @@ export class HttpExchange extends HTKEventBase implements HttpExchangeView {
         this.upstream.updateFromUpstreamAbort(abort);
     }
 
+    // External observers who need to cleanup when an exchange is dropped & cleaned up
+    // can be added here (e.g. Send page, when View is cleared).
+    private cleanupListeners: Array<() => void> = [];
+
+    onCleanup(listener: () => void) {
+        this.cleanupListeners.push(listener);
+    }
+
     // Must only be called when the exchange will no longer be used. Ensures that large data is
     // definitively unlinked, since some browser issues can result in exchanges not GCing immediately.
     // Important: for safety, this leaves the exchange in a *VALID* but reset state - not a totally blank one.
@@ -351,6 +359,9 @@ export class HttpExchange extends HTKEventBase implements HttpExchangeView {
         if (this.upstream) {
             this.upstream.cleanup();
         }
+
+        this.cleanupListeners.forEach((listener) => listener());
+        this.cleanupListeners = [];
     }
 
     // API metadata:

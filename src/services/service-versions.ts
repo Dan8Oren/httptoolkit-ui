@@ -1,10 +1,13 @@
 import * as localForage from 'localforage';
-import * as semver from 'semver';
 
-import { RUNNING_IN_WORKER } from '../util';
 import { lazyObservablePromise } from "../util/observable";
 import { getServerVersion, waitUntilServerReady } from "./server-api";
-import { getDesktopInjectedValue } from "./desktop-api";
+import { DesktopApi, getDesktopInjectedValue } from "./desktop-api";
+import { lastServerVersion, versionSatisfies } from "./version-check";
+
+// lastServerVersion & versionSatisfies have no server/desktop API dependencies, so they
+// live in ./version-check where service workers can use them without complex deps & logic.
+export { lastServerVersion, versionSatisfies };
 
 export const UI_VERSION = process.env.UI_VERSION || "Unknown";
 
@@ -23,24 +26,6 @@ export const serverVersion = lazyObservablePromise(() =>
             return version;
         })
 );
-
-// The last known service version - immediately available (though still async),
-// but reports the previous startup version, not necessarily the latest one.
-// May be undefined if the app has never yet started successfully.
-export const lastServerVersion =
-    localForage.getItem<string>('last-server-version')
-    // Fallback to previous localStorage data approach, just in case
-    .then((version) => {
-        if (!version && !RUNNING_IN_WORKER) {
-            return localStorage.getItem('last-server-version')
-        }
-        else return version;
-    });
-
-export function versionSatisfies(version: string | Error | undefined, range: string) {
-    return (typeof version === 'string') &&
-        semver.satisfies(version, range, { includePrerelease: true });
-}
 
 // A quick way to check server support synchronously
 export function serverSupports(versionRequirement: string | undefined) {
@@ -89,3 +74,29 @@ export const ADVANCED_PATCH_TRANSFORMS = '^1.18.0';
 export const WILDCARD_CLIENT_CERTS = '^1.22.0';
 export const KEY_LOG_FILE_SUPPORTED = '^1.23.0';
 export const WEBHOOK_AND_DELAY_RULES = '^1.23.0';
+
+// Report component versions to the desktop app menu, when available:
+if (DesktopApi.setComponentVersions) {
+    let desktop: string | undefined;
+    let server: string | undefined;
+
+    const buildVersions = () => {
+        const versions: Record<string, string> = {};
+        if (desktop) versions["Desktop"] = desktop;
+        if (server) versions["Server"] = server;
+        versions["UI"] = UI_VERSION.slice(0, 8);
+        return versions;
+    };
+
+    DesktopApi.setComponentVersions(buildVersions());
+
+    desktopVersion.then((v) => {
+        desktop = v;
+        DesktopApi.setComponentVersions!(buildVersions());
+    }).catch(() => {});
+
+    serverVersion.then((v) => {
+        server = v;
+        DesktopApi.setComponentVersions!(buildVersions());
+    }).catch(() => {});
+}

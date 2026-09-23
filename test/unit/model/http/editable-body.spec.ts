@@ -1,6 +1,6 @@
 import * as zlib from 'zlib';
 
-import { observable } from 'mobx';
+import { observable, runInAction } from 'mobx';
 
 import { expect } from '../../../test-setup';
 
@@ -137,14 +137,14 @@ describe("Editable bodies", () => {
         );
 
         expect(body.latestEncodingResult).to.deep.equal({ state: 'pending' }); // Initial pre-encoding value
-        await delay(0);
+        await body.encodingPromise.catch(() => {}); // Wait for the (rejecting) initial encoding to settle
 
         // Initial failure:
         const secondResult = body.latestEncodingResult;
         expect(secondResult.state).to.equal('rejected');
         expect((secondResult.value as any).message).to.equal('Unsupported encoding: invalid-unknown-encoding');
 
-        headers.set([]);
+        runInAction(() => headers.set([]));
         body.updateDecodedBody(Buffer.from('updated'));
 
         expect(body.latestEncodingResult).to.deep.equal(secondResult); // Still shows initial failure during encoding
