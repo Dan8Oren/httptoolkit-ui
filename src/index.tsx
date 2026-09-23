@@ -89,7 +89,7 @@ const eventsStore = new EventsStore(proxyStore, apiStore, rulesStore);
 const sendStore = new SendStore(accountStore, eventsStore, rulesStore, proxyStore);
 // Talks to our device-service sidecar, not the HTTP Toolkit server. Its initialized
 // promise always resolves - a missing sidecar must not block app startup.
-const deviceStore = new DeviceStore();
+const deviceStore = new DeviceStore(rulesStore);
 
 const stores = {
     accountStore,

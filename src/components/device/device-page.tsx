@@ -5,9 +5,13 @@ import { observer, inject } from 'mobx-react';
 import { WithInjected } from '../../types';
 import { styled, warningColor } from '../../styles';
 
-import { DeviceStore } from '../../model/device/device-store';
+import { DeviceStore, EgressEndpoint, Place } from '../../model/device/device-store';
+import { UpstreamProxyType } from '../../model/rules/rules-store';
 
 import { Button, SecondaryButton, TextInput, Select } from '../common/inputs';
+
+const PROXY_TYPES: UpstreamProxyType[] =
+    ['socks5h', 'socks5', 'socks4a', 'socks4', 'http', 'https'];
 
 interface DevicePageProps {
     deviceStore: DeviceStore;
@@ -94,6 +98,40 @@ const Warning = styled.div`
     }
 `;
 
+const EndpointRow = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid ${p => p.theme.containerBorder};
+
+    &:last-child { border-bottom: none; }
+`;
+
+const EndpointLabel = styled.div<{ active: boolean }>`
+    flex-grow: 1;
+    font-weight: ${p => p.active ? 'bold' : 'normal'};
+
+    > small {
+        display: block;
+        font-family: ${p => p.theme.monoFontFamily};
+        opacity: 0.7;
+    }
+`;
+
+const CheckResult = styled.small<{ ok: boolean }>`
+    font-family: ${p => p.theme.monoFontFamily};
+    color: ${p => p.ok ? p.theme.mainColor : warningColor};
+`;
+
+const HostInput = styled(TextInput)`
+    width: 190px;
+`;
+
+const LabelInput = styled(TextInput)`
+    width: 130px;
+`;
+
 const ErrorMessage = styled.p`
     color: ${warningColor};
     margin-top: 10px;
@@ -103,66 +141,210 @@ const ErrorMessage = styled.p`
 @observer
 class DevicePage extends React.Component<DevicePageProps> {
 
-    @observable private lat = '';
-    @observable private lon = '';
-    @observable private accuracy = '5';
-    @observable private selectedCity = '';
+    @observable private showAdvanced = false;
 
-    @computed private get parsed(): { lat: number, lon: number } | undefined {
-        const lat = parseFloat(this.lat);
-        const lon = parseFloat(this.lon);
-        if (!isFinite(lat) || !isFinite(lon)) return undefined;
-        if (lat < -90 || lat > 90 || lon < -180 || lon > 180) return undefined;
-        return { lat, lon };
+    @action.bound private toggleAdvanced() { this.showAdvanced = !this.showAdvanced; }
+
+    @action.bound private onPlaceChange(e: React.ChangeEvent<HTMLSelectElement>) {
+        const place = e.target.value;
+        if (place) this.props.deviceStore.setPlace(place);
     }
 
-    @action.bound
-    private onCityChange(event: React.ChangeEvent<HTMLSelectElement>) {
-        const name = event.target.value;
-        this.selectedCity = name;
+    @observable private newLabel = '';
+    @observable private newType: UpstreamProxyType = 'socks5h';
+    @observable private newHost = '';
+    @observable private newCountry = '';
+    @observable private nordUser = '';
+    @observable private nordPass = '';
 
-        const city = this.props.deviceStore.cities.find(c => c.name === name);
-        if (city) {
-            this.lat = String(city.lat);
-            this.lon = String(city.lon);
-        }
+    componentDidMount() {
+        this.props.deviceStore.checkDirect();
     }
 
-    @action.bound
-    private onLatChange(e: React.ChangeEvent<HTMLInputElement>) {
-        this.lat = e.target.value;
-        this.selectedCity = '';
+    @action.bound private onNewLabel(e: React.ChangeEvent<HTMLInputElement>) {
+        this.newLabel = e.target.value;
+    }
+    @action.bound private onNewType(e: React.ChangeEvent<HTMLSelectElement>) {
+        this.newType = e.target.value as UpstreamProxyType;
+    }
+    @action.bound private onNewHost(e: React.ChangeEvent<HTMLInputElement>) {
+        this.newHost = e.target.value;
+    }
+    @action.bound private onNewCountry(e: React.ChangeEvent<HTMLInputElement>) {
+        this.newCountry = e.target.value;
+    }
+    @action.bound private onNordUser(e: React.ChangeEvent<HTMLInputElement>) {
+        this.nordUser = e.target.value;
+    }
+    @action.bound private onNordPass(e: React.ChangeEvent<HTMLInputElement>) {
+        this.nordPass = e.target.value;
+    }
+    @action.bound private addNordVpn() {
+        if (!this.nordUser.trim() || !this.nordPass.trim()) return;
+        this.props.deviceStore.configureNordVpn(this.nordUser.trim(), this.nordPass.trim());
+        this.nordUser = '';
+        this.nordPass = '';
     }
 
-    @action.bound
-    private onLonChange(e: React.ChangeEvent<HTMLInputElement>) {
-        this.lon = e.target.value;
-        this.selectedCity = '';
-    }
-
-    @action.bound
-    private onAccuracyChange(e: React.ChangeEvent<HTMLInputElement>) {
-        this.accuracy = e.target.value;
-    }
-
-    @action.bound
-    private apply(stopCompeting = false) {
-        const position = this.parsed;
-        if (!position) return;
-
-        const accuracy = parseFloat(this.accuracy);
-        this.props.deviceStore.setLocation({
-            ...position,
-            accuracy: isFinite(accuracy) ? accuracy : undefined,
-            stopCompeting
+    @action.bound private addEndpoint() {
+        if (!this.newLabel.trim() || !this.newHost.trim()) return;
+        this.props.deviceStore.addEgress({
+            label: this.newLabel.trim(),
+            type: this.newType,
+            host: this.newHost.trim(),
+            country: this.newCountry.trim().toLowerCase() || undefined
         });
+        this.newLabel = '';
+        this.newHost = '';
+        this.newCountry = '';
+    }
+
+    private renderPlaceStatus() {
+        const { lastResult, applying } = this.props.deviceStore;
+        if (applying) return <StatusLine>Applying {applying}…</StatusLine>;
+        if (!lastResult) return null;
+
+        const { gps, egress, label } = lastResult;
+        return <StatusLine>
+            <strong>{ label }</strong><br />
+            GPS: { gps?.ok
+                ? `${gps.lat}, ${gps.lon}`
+                : `failed — ${gps?.error ?? 'unknown error'}` }
+            <br />
+            IP: { egress?.ok
+                ? `via ${egress.endpoint?.label}`
+                : egress?.error ?? 'unchanged' }
+        </StatusLine>;
+    }
+
+    private renderAdvanced() {
+        const { deviceStore } = this.props;
+        const {
+            egressEndpoints, egressChecks, activeEgress, directEgress, busy, tor
+        } = deviceStore;
+
+        return <>
+            <SectionHeading>NordVPN</SectionHeading>
+            <p>
+                Adds NordVPN's SOCKS5 endpoints in one step. Use the{' '}
+                <strong>service credentials</strong> from your Nord dashboard, not
+                your account email and password.
+            </p>
+            <Warning>
+                Nord exposes SOCKS5 in <strong>Netherlands, Sweden and the United
+                States only</strong>. Its other locations — Egypt included — exist
+                as full VPN tunnels, which would reroute this entire Mac rather
+                than just the device.
+            </Warning>
+            <Row>
+                <Field>
+                    Service username
+                    <LabelInput value={this.nordUser} onChange={this.onNordUser} />
+                </Field>
+                <Field>
+                    Service password
+                    <LabelInput type='password' value={this.nordPass}
+                        onChange={this.onNordPass} />
+                </Field>
+                <Button onClick={this.addNordVpn}
+                    disabled={!this.nordUser.trim() || !this.nordPass.trim() || busy}>
+                    Add NordVPN endpoints
+                </Button>
+            </Row>
+
+            <SectionHeading>Egress endpoints</SectionHeading>
+            <p>
+                Used in preference to Tor when one matches the country you pick —
+                add a commercial provider's SOCKS5 endpoint here (NordVPN, Mullvad
+                and similar), with <code>user:pass@host:port</code> if it needs auth.
+            </p>
+
+            { egressEndpoints.map(endpoint => {
+                const check = egressChecks[endpoint.label];
+                const isActive = activeEgress?.host === endpoint.host;
+
+                return <EndpointRow key={endpoint.label}>
+                    <EndpointLabel active={isActive}>
+                        { endpoint.label }
+                        { endpoint.country && ` · ${endpoint.country.toUpperCase()}` }
+                        { isActive && ' — active' }
+                        <small>{ endpoint.type }://{ endpoint.displayHost ?? endpoint.host }</small>
+                        { check === 'checking'
+                            ? <CheckResult ok={true}>checking…</CheckResult>
+                        : check
+                            ? <CheckResult ok={check.ok}>
+                                { check.ok ? `${check.ip} — ${check.country}`
+                                           : `failed: ${check.error}` }
+                            </CheckResult>
+                        : null }
+                    </EndpointLabel>
+                    <SecondaryButton onClick={() => deviceStore.checkEgress(endpoint)}>
+                        Test
+                    </SecondaryButton>
+                    <SecondaryButton onClick={() => deviceStore.removeEgress(endpoint.label)}>
+                        Remove
+                    </SecondaryButton>
+                </EndpointRow>;
+            }) }
+
+            <Row>
+                <Field>
+                    Label
+                    <LabelInput value={this.newLabel} onChange={this.onNewLabel}
+                        placeholder='Nord NL' />
+                </Field>
+                <Field>
+                    Country
+                    <LabelInput value={this.newCountry} onChange={this.onNewCountry}
+                        placeholder='nl' />
+                </Field>
+                <Field>
+                    Type
+                    <Select value={this.newType} onChange={this.onNewType}>
+                        { PROXY_TYPES.map(t =>
+                            <option key={t} value={t}>{ t }</option>
+                        ) }
+                    </Select>
+                </Field>
+                <Field>
+                    Host:port
+                    <HostInput value={this.newHost} onChange={this.onNewHost}
+                        placeholder='user:pass@host:1080' />
+                </Field>
+                <Button onClick={this.addEndpoint}
+                    disabled={!this.newLabel.trim() || !this.newHost.trim() || busy}>
+                    Add
+                </Button>
+            </Row>
+
+            <StatusLine>
+                Tor: { !tor?.installed
+                    ? 'not installed — run `brew install tor` for automatic country switching'
+                    : tor.running
+                        ? `running, exit country ${tor.country}, socks at ${tor.socks}`
+                        : 'installed, not running' }
+                <br />
+                This Mac exits via { directEgress?.ok
+                    ? `${directEgress.ip} (${directEgress.country})` : '…' }
+            </StatusLine>
+
+            <Row>
+                <SecondaryButton onClick={() => deviceStore.applyEgress(undefined)}
+                    disabled={!activeEgress}>
+                    Reset IP to direct
+                </SecondaryButton>
+                <SecondaryButton onClick={deviceStore.checkDirect}>
+                    Re-check this Mac
+                </SecondaryButton>
+            </Row>
+        </>;
     }
 
     render() {
         const { deviceStore } = this.props;
         const {
-            serviceAvailable, device, cities, status, busy, lastError,
-            mockedPosition, activeCompetingApps
+            serviceAvailable, device, places, busy, lastError,
+            activeCompetingApps, activeEgress, status, mockedPosition
         } = deviceStore;
 
         if (!serviceAvailable) {
@@ -186,103 +368,74 @@ class DevicePage extends React.Component<DevicePageProps> {
             <DevicePageContainer>
                 <DeviceHeading>Device</DeviceHeading>
                 <DeviceSubheading>
-                    { device
-                        ? `${device.name} (${device.serial})`
-                        : 'No ADB device connected' }
+                    { device ? `${device.name} (${device.serial})`
+                             : 'No ADB device connected' }
                 </DeviceSubheading>
 
                 <Section>
-                    <SectionHeading>GPS location</SectionHeading>
+                    <SectionHeading>Where is this device?</SectionHeading>
+                    <p>
+                        Sets the GPS position and moves the device's apparent IP to
+                        match. Only intercepted traffic is rerouted — this Mac's own
+                        connections are untouched.
+                    </p>
 
                     <Row>
                         <Field>
-                            Preset
+                            Location
                             <Select
-                                value={this.selectedCity}
-                                onChange={this.onCityChange}
-                                disabled={!device}
+                                defaultValue=''
+                                onChange={this.onPlaceChange}
+                                disabled={!device || !!busy}
                             >
-                                <option value=''>Custom…</option>
-                                { cities.map(city =>
-                                    <option key={city.name} value={city.name}>
-                                        { city.name }
+                                <option value=''>Choose a place…</option>
+                                { places.map((place: Place) =>
+                                    <option key={place.name} value={place.name}>
+                                        { place.label }
+                                        { place.egress === 'unavailable'
+                                            ? '  (GPS only — no IP available)'
+                                        : place.egress === 'endpoint'
+                                            ? '  (GPS + your endpoint)'
+                                        : '  (GPS + IP)' }
                                     </option>
                                 ) }
                             </Select>
                         </Field>
-
-                        <Field>
-                            Latitude
-                            <CoordInput
-                                value={this.lat}
-                                onChange={this.onLatChange}
-                                placeholder='52.5200'
-                                disabled={!device}
-                            />
-                        </Field>
-
-                        <Field>
-                            Longitude
-                            <CoordInput
-                                value={this.lon}
-                                onChange={this.onLonChange}
-                                placeholder='13.4050'
-                                disabled={!device}
-                            />
-                        </Field>
-
-                        <Field>
-                            Accuracy (m)
-                            <AccuracyInput
-                                value={this.accuracy}
-                                onChange={this.onAccuracyChange}
-                                disabled={!device}
-                            />
-                        </Field>
                     </Row>
 
-                    <Row>
-                        <Button
-                            onClick={() => this.apply(false)}
-                            disabled={!device || !this.parsed || busy}
-                        >
-                            { busy ? 'Applying…' : 'Apply' }
-                        </Button>
-                        <SecondaryButton
-                            onClick={deviceStore.clearLocation}
-                            disabled={!device || busy}
-                        >
-                            Clear
-                        </SecondaryButton>
-                    </Row>
+                    { this.renderPlaceStatus() }
 
                     { activeCompetingApps.length > 0 && <Warning>
                         <strong>Another app is mocking location.</strong>
                         <div>
                             { activeCompetingApps.map(a => a.package).join(', ') }
-                            {' '}holds MOCK_LOCATION and is running, so it will
-                            overwrite whatever you set here within seconds.
+                            {' '}will overwrite this. It gets stopped automatically
+                            when you pick a place.
                         </div>
-                        <SecondaryButton
-                            onClick={() => this.apply(true)}
-                            disabled={!this.parsed || busy}
-                        >
-                            Stop it and apply
-                        </SecondaryButton>
                     </Warning> }
 
                     { lastError && <ErrorMessage>{ lastError }</ErrorMessage> }
 
                     <StatusLine>
-                        { status?.mocked && mockedPosition
-                            ? <>
-                                Mocked: { mockedPosition.lat }, { mockedPosition.lon }
-                                <br />
-                                Providers: { status.providers.map(p => p.provider).join(', ') }
-                            </>
-                            : 'Not currently mocked — the device reports its real position.' }
+                        Now: { status?.mocked && mockedPosition
+                            ? `GPS ${mockedPosition.lat}, ${mockedPosition.lon}`
+                            : 'GPS not mocked' }
+                        {' · '}
+                        { activeEgress ? `IP via ${activeEgress.label}` : 'IP direct' }
                     </StatusLine>
+
+                    <Row>
+                        <SecondaryButton onClick={deviceStore.clearLocation}
+                            disabled={!device || !!busy}>
+                            Clear GPS
+                        </SecondaryButton>
+                        <SecondaryButton onClick={this.toggleAdvanced}>
+                            { this.showAdvanced ? 'Hide advanced' : 'Advanced…' }
+                        </SecondaryButton>
+                    </Row>
                 </Section>
+
+                { this.showAdvanced && <Section>{ this.renderAdvanced() }</Section> }
             </DevicePageContainer>
         </DevicePageScrollContainer>;
     }
