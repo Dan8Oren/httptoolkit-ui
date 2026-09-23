@@ -30,6 +30,7 @@ import { ViewPage } from './view/view-page';
 import { ModifyPage } from './modify/modify-page';
 import { SendPage } from './send/send-page';
 import { SettingsPage } from './settings/settings-page';
+import { DevicePage } from './device/device-page';
 
 
 import { HtmlContextMenu } from './html-context-menu';
@@ -181,6 +182,15 @@ class App extends React.Component<{
             ),
 
             {
+                name: 'Device',
+                title: 'Control the connected Android device',
+                icon: 'MapPin',
+                position: 'bottom',
+                type: 'router',
+                url: '/device'
+            },
+
+            {
                 name: 'Settings',
                 title: `Reconfigure HTTP Toolkit and manage your account (${Ctrl}+9)`,
                 icon: 'GearSix',
@@ -238,6 +248,7 @@ class App extends React.Component<{
                     <Route path={'/modify'} pageComponent={ModifyPage} />
                     <Route path={'/modify/:initialRuleId'} pageComponent={ModifyPage} />
                     <Route path={'/send'} pageComponent={SendPage} />
+                    <Route path={'/device'} pageComponent={DevicePage} />
                     <Route path={'/settings'} pageComponent={SettingsPage} />
                 </Router>
 

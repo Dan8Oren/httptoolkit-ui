@@ -14,6 +14,7 @@ import {
     Lightning,
     Sparkle,
     ChatText,
+    MapPin,
 
     // Functional icons
     Pause,
@@ -50,6 +51,7 @@ const Icons = {
     Lightning,
     Sparkle,
     ChatText,
+    MapPin,
 
     Pause,
     Plug,

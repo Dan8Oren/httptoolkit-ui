@@ -34,6 +34,7 @@ import { RulesStore } from './model/rules/rules-store';
 import { InterceptorStore } from './model/interception/interceptor-store';
 import { ApiStore } from './model/api/api-store';
 import { SendStore } from './model/send/send-store';
+import { DeviceStore } from './model/device/device-store';
 
 import { serverVersion, desktopVersion, lastServerVersion, UI_VERSION } from './services/service-versions';
 import {
@@ -86,6 +87,9 @@ const rulesStore = new RulesStore(accountStore, proxyStore,
 );
 const eventsStore = new EventsStore(proxyStore, apiStore, rulesStore);
 const sendStore = new SendStore(accountStore, eventsStore, rulesStore, proxyStore);
+// Talks to our device-service sidecar, not the HTTP Toolkit server. Its initialized
+// promise always resolves - a missing sidecar must not block app startup.
+const deviceStore = new DeviceStore();
 
 const stores = {
     accountStore,
@@ -95,7 +99,8 @@ const stores = {
     eventsStore,
     interceptorStore,
     rulesStore,
-    sendStore
+    sendStore,
+    deviceStore
 };
 
 const appStartupPromise = Promise.all(
