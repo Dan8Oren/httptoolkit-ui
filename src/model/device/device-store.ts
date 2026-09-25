@@ -35,11 +35,25 @@ export interface CompetingApp {
     running: boolean;
 }
 
+export interface IntendedPlace {
+    place: string;
+    label: string;
+    country: string;
+    lat: number;
+    lon: number;
+    at: number;
+}
+
+/** Why the device no longer matches what was asked for, if it doesn't. */
+export type Drift = 'gps-lost' | 'gps-moved' | 'no-device' | null;
+
 export interface LocationStatus {
     device: string | null;
     mocked: boolean;
     providers: MockedProvider[];
     competing: CompetingApp[];
+    intended?: IntendedPlace | null;
+    drift?: Drift;
 }
 
 export interface Place {
@@ -49,7 +63,7 @@ export interface Place {
     lon: number;
     country: string;
     /** How the IP can follow this place, if at all. */
-    egress: 'endpoint' | 'tor' | 'unavailable' | 'unknown';
+    egress: 'endpoint' | 'tor' | 'tor-slow' | 'unavailable' | 'unknown';
     torExits: number | null;
 }
 
@@ -157,6 +171,24 @@ export class DeviceStore {
     @computed get mockedPosition(): { lat: number, lon: number } | undefined {
         const withFix = this.status?.providers.find(p => p.lat != null && p.lon != null);
         return withFix ? { lat: withFix.lat!, lon: withFix.lon! } : undefined;
+    }
+
+    /**
+     * What the device was last asked to be. Kept by the service on disk, so it
+     * survives a page reload, a service restart and a device reboot.
+     */
+    @computed get intended(): IntendedPlace | undefined {
+        return this.status?.intended ?? undefined;
+    }
+
+    /**
+     * Set when the device has stopped matching the request - most often because
+     * a reboot wiped the GPS test provider, which leaves no trace on the device
+     * itself. The service re-applies it automatically; this is what tells the
+     * user it happened.
+     */
+    @computed get drift(): Drift {
+        return this.status?.drift ?? null;
     }
 
     /** Apps other than us that hold MOCK_LOCATION and are running right now. */

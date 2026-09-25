@@ -5,7 +5,7 @@ import { observer, inject } from 'mobx-react';
 import { WithInjected } from '../../types';
 import { styled, warningColor } from '../../styles';
 
-import { DeviceStore, EgressEndpoint, Place } from '../../model/device/device-store';
+import { DeviceStore, EgressEndpoint, Place, Drift } from '../../model/device/device-store';
 import { UpstreamProxyType } from '../../model/rules/rules-store';
 
 import { Button, SecondaryButton, TextInput, Select } from '../common/inputs';
@@ -197,6 +197,29 @@ class DevicePage extends React.Component<DevicePageProps> {
         this.newLabel = '';
         this.newHost = '';
         this.newCountry = '';
+    }
+
+    private renderDrift() {
+        const { drift, intended } = this.props.deviceStore;
+        if (!drift || !intended) return null;
+
+        const explain: Record<Exclude<Drift, null>, string> = {
+            'gps-lost': `The device lost its mocked location — a reboot wipes it, ` +
+                `since the test provider only lives in memory.`,
+            'gps-moved': `The device's position no longer matches ${intended.label} — ` +
+                `something else moved it.`,
+            'no-device': `No device connected, so ${intended.label} isn't applied.`
+        };
+
+        return <Warning>
+            <strong>Not currently in {intended.label}.</strong>
+            <div>{ explain[drift] }</div>
+            <div>
+                { drift === 'no-device'
+                    ? 'It will be re-applied when the device reconnects.'
+                    : 'Re-applying automatically…' }
+            </div>
+        </Warning>;
     }
 
     private renderPlaceStatus() {
@@ -396,6 +419,8 @@ class DevicePage extends React.Component<DevicePageProps> {
                                             ? '  (GPS only — no IP available)'
                                         : place.egress === 'endpoint'
                                             ? '  (GPS + your endpoint)'
+                                        : place.egress === 'tor-slow'
+                                            ? `  (GPS + IP — only ${place.torExits} relays, slow)`
                                         : '  (GPS + IP)' }
                                     </option>
                                 ) }
@@ -403,6 +428,7 @@ class DevicePage extends React.Component<DevicePageProps> {
                         </Field>
                     </Row>
 
+                    { this.renderDrift() }
                     { this.renderPlaceStatus() }
 
                     { activeCompetingApps.length > 0 && <Warning>
@@ -417,6 +443,8 @@ class DevicePage extends React.Component<DevicePageProps> {
                     { lastError && <ErrorMessage>{ lastError }</ErrorMessage> }
 
                     <StatusLine>
+                        Asked for: { deviceStore.intended?.label ?? 'nothing yet' }
+                        <br />
                         Now: { status?.mocked && mockedPosition
                             ? `GPS ${mockedPosition.lat}, ${mockedPosition.lon}`
                             : 'GPS not mocked' }
