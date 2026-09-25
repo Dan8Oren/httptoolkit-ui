@@ -56,12 +56,25 @@ export interface LocationStatus {
     drift?: Drift;
 }
 
+export interface LocaleOption {
+    tag: string;
+    name: string;
+}
+
+export interface DeviceLocale {
+    locale: string | null;
+    timezone: string | null;
+}
+
 export interface Place {
     name: string;
     label: string;
     lat: number;
     lon: number;
     country: string;
+    timezone: string;
+    /** The language this place would normally be used in. Offered, never forced. */
+    suggestedLocale: string;
     /** How the IP can follow this place, if at all. */
     egress: 'endpoint' | 'tor' | 'tor-slow' | 'unavailable' | 'unknown';
     torExits: number | null;
@@ -79,6 +92,9 @@ export interface PlaceResult {
     place: string;
     label: string;
     country: string;
+    timezone?: string;
+    suggestedLocale?: string;
+    tz?: { ok: boolean, timezone?: string, error?: string } | null;
     gps: { ok: boolean, lat?: number, lon?: number, error?: string } | null;
     egress: {
         ok: boolean,
@@ -139,6 +155,9 @@ export class DeviceStore {
     @observable places: Place[] = [];
     @observable tor: TorState | undefined;
     @observable lastResult: PlaceResult | undefined;
+    @observable locales: LocaleOption[] = [];
+    @observable deviceLocale: DeviceLocale | undefined;
+    @observable localeChanging = false;
     @observable applying: string | undefined;
     @observable status: LocationStatus | undefined;
 
@@ -204,11 +223,16 @@ export class DeviceStore {
                 api<LocationStatus>('/location')
             ]);
 
-            const [places, egressEndpoints, tor] = await Promise.all([
+            const [places, egressEndpoints, tor, deviceLocale] = await Promise.all([
                 api<Place[]>('/places'),
                 api<EgressEndpoint[]>('/egress'),
-                api<TorState>('/tor')
+                api<TorState>('/tor'),
+                api<DeviceLocale>('/locale')
             ]);
+
+            const locales = this.locales.length
+                ? this.locales
+                : await api<LocaleOption[]>('/locales');
 
             runInAction(() => {
                 this.serviceAvailable = true;
@@ -217,6 +241,8 @@ export class DeviceStore {
                 this.places = places;
                 this.egressEndpoints = egressEndpoints;
                 this.tor = tor;
+                this.deviceLocale = deviceLocale;
+                this.locales = locales;
             });
         } catch (e) {
             runInAction(() => {
@@ -289,6 +315,29 @@ export class DeviceStore {
             this.lastError = (e as Error).message;
         } finally {
             this.applying = undefined;
+        }
+    });
+
+    /**
+     * Change the device's system language. Deliberately separate from picking a
+     * place: unlike GPS, IP and timezone, this needs a zygote restart - roughly
+     * 26 seconds, during which the VPN drops and interception must be
+     * re-activated. Not something a place change should trigger silently.
+     */
+    setDeviceLocale = flow(function * (this: DeviceStore, locale: string) {
+        this.localeChanging = true;
+        this.lastError = undefined;
+        try {
+            const result = (yield api<{ ok: boolean, error?: string }>('/locale', {
+                method: 'POST',
+                body: JSON.stringify({ locale })
+            })) as { ok: boolean, error?: string };
+            if (!result.ok) this.lastError = result.error ?? 'Language change failed';
+            yield this.refresh();
+        } catch (e) {
+            this.lastError = (e as Error).message;
+        } finally {
+            this.localeChanging = false;
         }
     });
 

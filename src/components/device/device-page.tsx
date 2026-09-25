@@ -143,11 +143,34 @@ class DevicePage extends React.Component<DevicePageProps> {
 
     @observable private showAdvanced = false;
 
+    /** Empty means "follow the place"; set once the user overrides it. */
+    @observable private localeOverride = '';
+
     @action.bound private toggleAdvanced() { this.showAdvanced = !this.showAdvanced; }
 
     @action.bound private onPlaceChange(e: React.ChangeEvent<HTMLSelectElement>) {
         const place = e.target.value;
-        if (place) this.props.deviceStore.setPlace(place);
+        if (!place) return;
+        // A new place re-suggests its language; drop any previous override so the
+        // dropdown follows along until the user deliberately picks otherwise.
+        this.localeOverride = '';
+        this.props.deviceStore.setPlace(place);
+    }
+
+    /** What the language dropdown shows: an override, else the place's language. */
+    @computed private get selectedLocale(): string {
+        if (this.localeOverride) return this.localeOverride;
+        const suggested = this.props.deviceStore.lastResult?.suggestedLocale;
+        return suggested ?? this.props.deviceStore.deviceLocale?.locale ?? '';
+    }
+
+    @action.bound private onLocaleChange(e: React.ChangeEvent<HTMLSelectElement>) {
+        this.localeOverride = e.target.value;
+    }
+
+    @action.bound private applyLocale() {
+        const locale = this.selectedLocale;
+        if (locale) this.props.deviceStore.setDeviceLocale(locale);
     }
 
     @observable private newLabel = '';
@@ -431,6 +454,45 @@ class DevicePage extends React.Component<DevicePageProps> {
                     { this.renderDrift() }
                     { this.renderPlaceStatus() }
 
+                    <Row>
+                        <Field>
+                            Language
+                            <Select
+                                value={this.selectedLocale}
+                                onChange={this.onLocaleChange}
+                                disabled={!device || deviceStore.localeChanging}
+                            >
+                                { deviceStore.locales.map(l =>
+                                    <option key={l.tag} value={l.tag}>{ l.name }</option>
+                                ) }
+                            </Select>
+                        </Field>
+                        <SecondaryButton
+                            onClick={this.applyLocale}
+                            disabled={
+                                !device ||
+                                deviceStore.localeChanging ||
+                                !this.selectedLocale ||
+                                this.selectedLocale === deviceStore.deviceLocale?.locale
+                            }
+                        >
+                            { deviceStore.localeChanging
+                                ? 'Restarting…'
+                                : 'Apply language' }
+                        </SecondaryButton>
+                    </Row>
+
+                    { this.selectedLocale &&
+                      this.selectedLocale !== deviceStore.deviceLocale?.locale &&
+                      !deviceStore.localeChanging &&
+                        <Warning>
+                            Changing the language restarts the device's UI (~30s) and
+                            <strong> drops interception</strong> — you'll need to
+                            re-activate it afterwards. Everything else about a place
+                            applies instantly; this is the one that costs something.
+                        </Warning>
+                    }
+
                     { activeCompetingApps.length > 0 && <Warning>
                         <strong>Another app is mocking location.</strong>
                         <div>
@@ -444,6 +506,10 @@ class DevicePage extends React.Component<DevicePageProps> {
 
                     <StatusLine>
                         Asked for: { deviceStore.intended?.label ?? 'nothing yet' }
+                        <br />
+                        Device: { deviceStore.deviceLocale?.locale ?? '?' }
+                        {' · '}
+                        { deviceStore.deviceLocale?.timezone ?? '?' }
                         <br />
                         Now: { status?.mocked && mockedPosition
                             ? `GPS ${mockedPosition.lat}, ${mockedPosition.lon}`
